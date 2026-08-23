@@ -14,6 +14,8 @@ import org.springframework.web.method.annotation.MethodArgumentTypeMismatchExcep
 import com.planwith.planwith_fo_comment.domain.exception.CommentAlreadyDeletedException;
 import com.planwith.planwith_fo_comment.domain.exception.CommentNotFoundException;
 import com.planwith.planwith_fo_comment.domain.exception.CommentOwnerMismatchException;
+import com.planwith.planwith_fo_comment.domain.exception.InvalidCommentContentException;
+import com.planwith.planwith_fo_comment.domain.exception.InvalidReplyException;
 import com.planwith.planwith_fo_comment.dto.ApiErrorResponse;
 
 import jakarta.validation.ConstraintViolationException;
@@ -39,6 +41,16 @@ public class GlobalExceptionHandler {
 	@ExceptionHandler(CommentAlreadyDeletedException.class)
 	public ResponseEntity<ApiErrorResponse> handleCommentAlreadyDeleted(CommentAlreadyDeletedException exception) {
 		return createErrorResponse(HttpStatus.CONFLICT, "COMMENT_ALREADY_DELETED", exception.getMessage());
+	}
+
+	@ExceptionHandler(InvalidReplyException.class)
+	public ResponseEntity<ApiErrorResponse> handleInvalidReply(InvalidReplyException exception) {
+		return createErrorResponse(HttpStatus.BAD_REQUEST, "INVALID_REPLY", exception.getMessage());
+	}
+
+	@ExceptionHandler(InvalidCommentContentException.class)
+	public ResponseEntity<ApiErrorResponse> handleInvalidCommentContent(InvalidCommentContentException exception) {
+		return createErrorResponse(HttpStatus.BAD_REQUEST, "INVALID_REQUEST", exception.getMessage());
 	}
 
 	@ExceptionHandler(MissingRequestHeaderException.class)

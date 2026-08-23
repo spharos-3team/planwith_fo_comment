@@ -32,6 +32,7 @@ import com.planwith.planwith_fo_comment.application.query.GetCommentsByStoryQuer
 import com.planwith.planwith_fo_comment.domain.comment.CommentEventType;
 import com.planwith.planwith_fo_comment.domain.exception.CommentNotFoundException;
 import com.planwith.planwith_fo_comment.domain.exception.CommentOwnerMismatchException;
+import com.planwith.planwith_fo_comment.domain.exception.InvalidReplyException;
 import com.planwith.planwith_fo_comment.domain.outbox.CommentOutboxEvent;
 
 @ActiveProfiles("test")
@@ -125,6 +126,26 @@ class CommentArchitectureIntegrationTests {
 		deleteCommentUseCase.delete(new DeleteCommentCommand(created.commentUuid(), memberUuid));
 		assertThatThrownBy(() -> getCommentUseCase.get(new GetCommentQuery(created.commentUuid())))
 				.isInstanceOf(CommentNotFoundException.class);
+	}
+
+	@Test
+	void createOneLevelReplyAndRejectNestedReply() {
+		UUID storyUuid = UUID.randomUUID();
+		UUID memberUuid = UUID.randomUUID();
+
+		CommentQueryResult parent = createCommentUseCase.create(
+				new CreateCommentCommand(storyUuid, memberUuid, "부모 댓글")
+		);
+		CommentQueryResult reply = createCommentUseCase.create(
+				new CreateCommentCommand(storyUuid, memberUuid, "대댓글", parent.commentUuid())
+		);
+
+		assertThat(parent.parentCommentUuid()).isNull();
+		assertThat(reply.parentCommentUuid()).isEqualTo(parent.commentUuid());
+
+		assertThatThrownBy(() -> createCommentUseCase.create(
+				new CreateCommentCommand(storyUuid, memberUuid, "중첩 대댓글", reply.commentUuid())
+		)).isInstanceOf(InvalidReplyException.class);
 	}
 
 	@Test

@@ -63,7 +63,8 @@ class CommentWebAdapterIntegrationTests {
 
 		mockMvc.perform(get("/api/planwith-fo-comment/comments/{commentUuid}", commentUuid))
 				.andExpect(status().isOk())
-				.andExpect(jsonPath("$.storyUuid").value(storyUuid.toString()));
+				.andExpect(jsonPath("$.storyUuid").value(storyUuid.toString()))
+				.andExpect(jsonPath("$.parentCommentUuid").isEmpty());
 
 		mockMvc.perform(patch("/api/planwith-fo-comment/comments/{commentUuid}", commentUuid)
 						.header("X-Member-Uuid", memberUuid)
@@ -83,6 +84,42 @@ class CommentWebAdapterIntegrationTests {
 		mockMvc.perform(get("/api/planwith-fo-comment/comments/{commentUuid}", commentUuid))
 				.andExpect(status().isNotFound())
 				.andExpect(jsonPath("$.code").value("COMMENT_NOT_FOUND"));
+	}
+
+	@Test
+	void createReplyThroughWebAdapter() throws Exception {
+		UUID storyUuid = UUID.randomUUID();
+		UUID memberUuid = UUID.randomUUID();
+
+		MvcResult parent = mockMvc.perform(post("/api/planwith-fo-comment/comments")
+						.header("X-Member-Uuid", memberUuid)
+						.contentType(MediaType.APPLICATION_JSON)
+						.content("""
+								{
+								  "storyUuid": "%s",
+								  "content": "부모 댓글"
+								}
+								""".formatted(storyUuid)))
+				.andExpect(status().isCreated())
+				.andReturn();
+
+		String parentUuid = objectMapper.readTree(parent.getResponse().getContentAsString())
+				.get("commentUuid")
+				.asText();
+
+		mockMvc.perform(post("/api/planwith-fo-comment/comments")
+						.header("X-Member-Uuid", memberUuid)
+						.contentType(MediaType.APPLICATION_JSON)
+						.content("""
+								{
+								  "storyUuid": "%s",
+								  "parentCommentUuid": "%s",
+								  "content": "대댓글"
+								}
+								""".formatted(storyUuid, parentUuid)))
+				.andExpect(status().isCreated())
+				.andExpect(jsonPath("$.parentCommentUuid").value(parentUuid))
+				.andExpect(jsonPath("$.content").value("대댓글"));
 	}
 
 	@Test

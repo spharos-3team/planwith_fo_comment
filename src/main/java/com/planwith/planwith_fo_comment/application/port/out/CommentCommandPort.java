@@ -3,11 +3,11 @@ package com.planwith.planwith_fo_comment.application.port.out;
 import java.util.Optional;
 import java.util.UUID;
 
-import com.planwith.planwith_fo_comment.domain.comment.Comment;
+import com.planwith.planwith_fo_comment.domain.comment.StoryComment;
 
 public interface CommentCommandPort {
 
-	void save(Comment comment);
+	void save(StoryComment comment);
 
-	Optional<Comment> findByUuid(UUID commentUuid);
+	Optional<StoryComment> findByUuid(UUID commentUuid);
 }

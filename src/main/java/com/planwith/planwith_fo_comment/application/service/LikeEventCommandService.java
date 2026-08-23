@@ -8,7 +8,7 @@ import com.planwith.planwith_fo_comment.application.port.in.HandleLikeCreatedUse
 import com.planwith.planwith_fo_comment.application.port.in.HandleLikeRemovedUseCase;
 import com.planwith.planwith_fo_comment.application.port.out.CommentCommandPort;
 import com.planwith.planwith_fo_comment.application.port.out.CommentLikeProjectionPort;
-import com.planwith.planwith_fo_comment.domain.comment.Comment;
+import com.planwith.planwith_fo_comment.domain.comment.StoryComment;
 
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
@@ -38,7 +38,7 @@ public class LikeEventCommandService implements HandleLikeCreatedUseCase, Handle
 			return;
 		}
 
-		Comment comment = commentCommandPort.findByUuid(command.commentUuid()).orElse(null);
+		StoryComment comment = commentCommandPort.findByUuid(command.commentUuid()).orElse(null);
 		if (comment == null || !comment.isActive()) {
 			log.warn(
 					"LikeEventCommandService : handleCreated : 로컬 댓글이 없어 Like 반영을 건너뜀 - commentUuid={}",
@@ -54,7 +54,7 @@ public class LikeEventCommandService implements HandleLikeCreatedUseCase, Handle
 		log.info(
 				"LikeEventCommandService : handleCreated : LikeCreated 반영 완료 - commentUuid={}, likeCount={}",
 				comment.getCommentUuid(),
-				comment.getLikeCount()
+				comment.getCommentLikeCount()
 		);
 	}
 
@@ -76,7 +76,7 @@ public class LikeEventCommandService implements HandleLikeCreatedUseCase, Handle
 			return;
 		}
 
-		Comment comment = commentCommandPort.findByUuid(command.commentUuid()).orElse(null);
+		StoryComment comment = commentCommandPort.findByUuid(command.commentUuid()).orElse(null);
 		if (comment == null || !comment.isActive()) {
 			log.warn(
 					"LikeEventCommandService : handleRemoved : 로컬 댓글이 없어 카운트 감소를 건너뜀 - commentUuid={}",
@@ -91,7 +91,7 @@ public class LikeEventCommandService implements HandleLikeCreatedUseCase, Handle
 		log.info(
 				"LikeEventCommandService : handleRemoved : LikeRemoved 반영 완료 - commentUuid={}, likeCount={}",
 				comment.getCommentUuid(),
-				comment.getLikeCount()
+				comment.getCommentLikeCount()
 		);
 	}
 }

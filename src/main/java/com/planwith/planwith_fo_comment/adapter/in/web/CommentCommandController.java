@@ -54,7 +54,8 @@ public class CommentCommandController {
 				createCommentUseCase.create(new CreateCommentCommand(
 						request.storyUuid(),
 						memberUuid,
-						request.content()
+						request.content(),
+						request.parentCommentUuid()
 				))
 		);
 		return ResponseEntity.status(HttpStatus.CREATED).body(response);

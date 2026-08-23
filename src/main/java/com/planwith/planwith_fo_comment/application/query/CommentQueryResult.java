@@ -7,6 +7,7 @@ public record CommentQueryResult(
 		UUID commentUuid,
 		UUID storyUuid,
 		UUID memberUuid,
+		UUID parentCommentUuid,
 		String nickname,
 		String profileImage,
 		String memberStatus,
