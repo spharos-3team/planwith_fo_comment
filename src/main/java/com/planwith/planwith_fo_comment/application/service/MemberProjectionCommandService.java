@@ -7,6 +7,7 @@ import com.planwith.planwith_fo_comment.application.command.SyncMemberProjection
 import com.planwith.planwith_fo_comment.application.port.in.SyncMemberProjectionUseCase;
 import com.planwith.planwith_fo_comment.application.port.out.MemberProjectionPort;
 import com.planwith.planwith_fo_comment.domain.memberprojection.MemberProjection;
+import com.planwith.planwith_fo_comment.domain.memberprojection.MemberStatus;
 
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
@@ -26,14 +27,15 @@ public class MemberProjectionCommandService implements SyncMemberProjectionUseCa
 				command.memberUuid()
 		);
 
+		MemberStatus memberStatus = MemberStatus.from(command.memberStatus());
 		MemberProjection projection = memberProjectionPort.findByMemberUuid(command.memberUuid())
 				.orElseGet(() -> MemberProjection.create(
 						command.memberUuid(),
 						command.nickname(),
 						command.profileImage(),
-						command.memberStatus()
+						memberStatus
 				));
-		projection.sync(command.nickname(), command.profileImage(), command.memberStatus());
+		projection.sync(command.nickname(), command.profileImage(), memberStatus);
 		memberProjectionPort.save(projection);
 
 		log.info(

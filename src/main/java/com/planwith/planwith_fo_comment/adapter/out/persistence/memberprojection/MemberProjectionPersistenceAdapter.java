@@ -23,7 +23,8 @@ public class MemberProjectionPersistenceAdapter implements MemberProjectionPort 
 				.nickname(memberProjection.getNickname())
 				.profileImage(memberProjection.getProfileImage())
 				.memberStatus(memberProjection.getMemberStatus())
-				.updatedAt(memberProjection.getUpdatedAt())
+				.sourceVersion(memberProjection.getSourceVersion())
+				.synchronizedAt(memberProjection.getSynchronizedAt())
 				.build());
 	}
 
@@ -35,7 +36,8 @@ public class MemberProjectionPersistenceAdapter implements MemberProjectionPort 
 						entity.getNickname(),
 						entity.getProfileImage(),
 						entity.getMemberStatus(),
-						entity.getUpdatedAt()
+						entity.getSourceVersion(),
+						entity.getSynchronizedAt()
 				));
 	}
 }

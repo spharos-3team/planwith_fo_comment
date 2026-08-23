@@ -3,8 +3,12 @@ package com.planwith.planwith_fo_comment.adapter.out.persistence.memberprojectio
 import java.time.Instant;
 import java.util.UUID;
 
+import com.planwith.planwith_fo_comment.domain.memberprojection.MemberStatus;
+
 import jakarta.persistence.Column;
 import jakarta.persistence.Entity;
+import jakarta.persistence.EnumType;
+import jakarta.persistence.Enumerated;
 import jakarta.persistence.Id;
 import jakarta.persistence.Table;
 import lombok.AccessLevel;
@@ -27,15 +31,19 @@ public class CommentMemberProjectionJpaEntity {
 	@Column(name = "member_uuid", columnDefinition = "char(36)", nullable = false, updatable = false)
 	private UUID memberUuid;
 
-	@Column(name = "nickname", length = 100)
+	@Column(name = "nickname", nullable = false, length = 20)
 	private String nickname;
 
-	@Column(name = "profile_image", length = 500)
+	@Column(name = "profile_image", length = 1000)
 	private String profileImage;
 
-	@Column(name = "member_status", length = 30)
-	private String memberStatus;
+	@Enumerated(EnumType.STRING)
+	@Column(name = "member_status", nullable = false, length = 20)
+	private MemberStatus memberStatus;
 
-	@Column(name = "updated_at", nullable = false)
-	private Instant updatedAt;
+	@Column(name = "source_version", nullable = false)
+	private long sourceVersion;
+
+	@Column(name = "synchronized_at", nullable = false)
+	private Instant synchronizedAt;
 }

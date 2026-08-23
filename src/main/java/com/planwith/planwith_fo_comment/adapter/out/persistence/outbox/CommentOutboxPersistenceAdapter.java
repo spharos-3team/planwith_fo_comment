@@ -9,7 +9,7 @@ import org.springframework.stereotype.Component;
 import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.planwith.planwith_fo_comment.application.port.out.CommentOutboxPort;
-import com.planwith.planwith_fo_comment.domain.comment.Comment;
+import com.planwith.planwith_fo_comment.domain.comment.StoryComment;
 import com.planwith.planwith_fo_comment.domain.comment.CommentEventType;
 import com.planwith.planwith_fo_comment.domain.outbox.CommentOutboxEvent;
 import com.planwith.planwith_fo_comment.domain.outbox.OutboxStatus;
@@ -24,17 +24,17 @@ public class CommentOutboxPersistenceAdapter implements CommentOutboxPort {
 	private final ObjectMapper objectMapper;
 
 	@Override
-	public void saveCommentCreated(Comment comment) {
+	public void saveCommentCreated(StoryComment comment) {
 		save(comment, CommentEventType.COMMENT_CREATED);
 	}
 
 	@Override
-	public void saveCommentUpdated(Comment comment) {
+	public void saveCommentUpdated(StoryComment comment) {
 		save(comment, CommentEventType.COMMENT_UPDATED);
 	}
 
 	@Override
-	public void saveCommentDeleted(Comment comment) {
+	public void saveCommentDeleted(StoryComment comment) {
 		save(comment, CommentEventType.COMMENT_DELETED);
 	}
 
@@ -58,7 +58,7 @@ public class CommentOutboxPersistenceAdapter implements CommentOutboxPort {
 		commentOutboxJpaRepository.save(entity);
 	}
 
-	private void save(Comment comment, CommentEventType eventType) {
+	private void save(StoryComment comment, CommentEventType eventType) {
 		CommentOutboxEvent event = CommentOutboxEvent.pending(
 				eventType,
 				comment.getCommentUuid(),
@@ -75,7 +75,7 @@ public class CommentOutboxPersistenceAdapter implements CommentOutboxPort {
 				.build());
 	}
 
-	private String toPayload(Comment comment, CommentEventType eventType) {
+	private String toPayload(StoryComment comment, CommentEventType eventType) {
 		CommentOutboxPayload payload = new CommentOutboxPayload(
 				eventType.name(),
 				comment.getCommentUuid(),

@@ -1,5 +1,7 @@
 package com.planwith.planwith_fo_comment.application.service;
 
+import java.util.UUID;
+
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -13,7 +15,7 @@ import com.planwith.planwith_fo_comment.application.port.out.CommentCommandPort;
 import com.planwith.planwith_fo_comment.application.port.out.CommentOutboxPort;
 import com.planwith.planwith_fo_comment.application.port.out.MemberProjectionPort;
 import com.planwith.planwith_fo_comment.application.query.CommentQueryResult;
-import com.planwith.planwith_fo_comment.domain.comment.Comment;
+import com.planwith.planwith_fo_comment.domain.comment.StoryComment;
 import com.planwith.planwith_fo_comment.domain.exception.CommentNotFoundException;
 import com.planwith.planwith_fo_comment.domain.memberprojection.MemberProjection;
 
@@ -34,19 +36,21 @@ public class CommentCommandService implements CreateCommentUseCase, UpdateCommen
 	public CommentQueryResult create(CreateCommentCommand command) {
 		log.info("CommentCommandService : create : 댓글 생성 비즈니스 로직 시작");
 		log.debug(
-				"CommentCommandService : create : 댓글 생성 요청 데이터 확인 - storyUuid={}, memberUuid={}",
+				"CommentCommandService : create : 댓글 생성 요청 데이터 확인 - storyUuid={}, memberUuid={}, parentCommentUuid={}",
 				command.storyUuid(),
-				command.memberUuid()
+				command.memberUuid(),
+				command.parentCommentUuid()
 		);
 
-		Comment comment = Comment.create(command.storyUuid(), command.memberUuid(), command.content());
+		StoryComment comment = createComment(command);
 		commentCommandPort.save(comment);
 		commentOutboxPort.saveCommentCreated(comment);
 
 		log.info(
-				"CommentCommandService : create : 댓글 생성 완료 - commentUuid={}, storyUuid={}",
+				"CommentCommandService : create : 댓글 생성 완료 - commentUuid={}, storyUuid={}, parentCommentUuid={}",
 				comment.getCommentUuid(),
-				comment.getStoryUuid()
+				comment.getStoryUuid(),
+				comment.getParentCommentUuid()
 		);
 		return toQueryResult(comment);
 	}
@@ -56,7 +60,7 @@ public class CommentCommandService implements CreateCommentUseCase, UpdateCommen
 	public CommentQueryResult update(UpdateCommentCommand command) {
 		log.info("CommentCommandService : update : 댓글 수정 비즈니스 로직 시작");
 
-		Comment comment = findActiveComment(command.commentUuid());
+		StoryComment comment = findActiveComment(command.commentUuid());
 		comment.updateContent(command.memberUuid(), command.content());
 		commentCommandPort.save(comment);
 		commentOutboxPort.saveCommentUpdated(comment);
@@ -73,7 +77,7 @@ public class CommentCommandService implements CreateCommentUseCase, UpdateCommen
 	public void delete(DeleteCommentCommand command) {
 		log.info("CommentCommandService : delete : 댓글 삭제 비즈니스 로직 시작");
 
-		Comment comment = findActiveComment(command.commentUuid());
+		StoryComment comment = findActiveComment(command.commentUuid());
 		comment.delete(command.memberUuid());
 		commentCommandPort.save(comment);
 		commentOutboxPort.saveCommentDeleted(comment);
@@ -84,8 +88,20 @@ public class CommentCommandService implements CreateCommentUseCase, UpdateCommen
 		);
 	}
 
-	private Comment findActiveComment(java.util.UUID commentUuid) {
-		Comment comment = commentCommandPort.findByUuid(commentUuid)
+	private StoryComment createComment(CreateCommentCommand command) {
+		if (command.parentCommentUuid() == null) {
+			return StoryComment.createRoot(command.storyUuid(), command.memberUuid(), command.content());
+		}
+
+		StoryComment parent = findActiveComment(command.parentCommentUuid());
+		if (!parent.getStoryUuid().equals(command.storyUuid())) {
+			throw new CommentNotFoundException(command.parentCommentUuid());
+		}
+		return StoryComment.createReply(parent, command.memberUuid(), command.content());
+	}
+
+	private StoryComment findActiveComment(UUID commentUuid) {
+		StoryComment comment = commentCommandPort.findByUuid(commentUuid)
 				.orElseThrow(() -> new CommentNotFoundException(commentUuid));
 		if (!comment.isActive()) {
 			throw new CommentNotFoundException(commentUuid);
@@ -93,18 +109,21 @@ public class CommentCommandService implements CreateCommentUseCase, UpdateCommen
 		return comment;
 	}
 
-	private CommentQueryResult toQueryResult(Comment comment) {
+	private CommentQueryResult toQueryResult(StoryComment comment) {
 		MemberProjection projection = memberProjectionPort.findByMemberUuid(comment.getMemberUuid())
 				.orElse(null);
 		return new CommentQueryResult(
 				comment.getCommentUuid(),
 				comment.getStoryUuid(),
 				comment.getMemberUuid(),
+				comment.getParentCommentUuid(),
 				projection == null ? null : projection.getNickname(),
 				projection == null ? null : projection.getProfileImage(),
-				projection == null ? null : projection.getMemberStatus(),
-				comment.getContent(),
-				comment.getLikeCount(),
+				projection == null || projection.getMemberStatus() == null
+						? null
+						: projection.getMemberStatus().name(),
+				comment.getCommentContent(),
+				comment.getCommentLikeCount(),
 				comment.getCreatedAt(),
 				comment.getUpdatedAt()
 		);

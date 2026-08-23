@@ -15,8 +15,8 @@ import com.planwith.planwith_fo_comment.adapter.out.persistence.memberprojection
 import com.planwith.planwith_fo_comment.application.port.out.CommentCommandPort;
 import com.planwith.planwith_fo_comment.application.port.out.CommentQueryPort;
 import com.planwith.planwith_fo_comment.application.query.CommentQueryResult;
-import com.planwith.planwith_fo_comment.domain.comment.Comment;
-import com.planwith.planwith_fo_comment.domain.comment.CommentStatus;
+import com.planwith.planwith_fo_comment.domain.comment.ModerationStatus;
+import com.planwith.planwith_fo_comment.domain.comment.StoryComment;
 
 import lombok.RequiredArgsConstructor;
 
@@ -24,33 +24,41 @@ import lombok.RequiredArgsConstructor;
 @RequiredArgsConstructor
 public class CommentPersistenceAdapter implements CommentCommandPort, CommentQueryPort {
 
-	private final CommentJpaRepository commentJpaRepository;
+	private final StoryCommentJpaRepository storyCommentJpaRepository;
 	private final CommentMemberProjectionJpaRepository memberProjectionJpaRepository;
 
 	@Override
-	public void save(Comment comment) {
-		commentJpaRepository.save(CommentPersistenceMapper.toEntity(comment));
+	public void save(StoryComment comment) {
+		StoryCommentJpaEntity entity = storyCommentJpaRepository.findByCommentUuid(comment.getCommentUuid())
+				.orElseGet(StoryCommentJpaEntity::new);
+		StoryCommentPersistenceMapper.copyToEntity(comment, entity);
+		StoryCommentJpaEntity saved = storyCommentJpaRepository.save(entity);
+		comment.assignCommentId(saved.getCommentId());
 	}
 
 	@Override
-	public Optional<Comment> findByUuid(UUID commentUuid) {
-		return commentJpaRepository.findById(commentUuid)
-				.map(CommentPersistenceMapper::toDomain);
+	public Optional<StoryComment> findByUuid(UUID commentUuid) {
+		return storyCommentJpaRepository.findByCommentUuid(commentUuid)
+				.map(StoryCommentPersistenceMapper::toDomain);
 	}
 
 	@Override
 	public Optional<CommentQueryResult> findActiveByUuid(UUID commentUuid) {
-		return commentJpaRepository.findById(commentUuid)
-				.filter(entity -> entity.getStatus() == CommentStatus.ACTIVE)
+		return storyCommentJpaRepository.findByCommentUuid(commentUuid)
+				.filter(entity -> entity.getDeletedAt() == null)
+				.filter(entity -> entity.getModerationStatus() == ModerationStatus.VISIBLE)
 				.map(entity -> toQueryResult(entity, findProjectionMap(Set.of(entity.getMemberUuid()))));
 	}
 
 	@Override
 	public List<CommentQueryResult> findActiveByStoryUuid(UUID storyUuid) {
-		List<CommentJpaEntity> comments = commentJpaRepository
-				.findByStoryUuidAndStatusOrderByCreatedAtAsc(storyUuid, CommentStatus.ACTIVE);
+		List<StoryCommentJpaEntity> comments = storyCommentJpaRepository
+				.findByStoryUuidAndDeletedAtIsNullAndModerationStatusOrderByCreatedAtAsc(
+						storyUuid,
+						ModerationStatus.VISIBLE
+				);
 		Set<UUID> memberUuids = comments.stream()
-				.map(CommentJpaEntity::getMemberUuid)
+				.map(StoryCommentJpaEntity::getMemberUuid)
 				.collect(Collectors.toSet());
 		Map<UUID, CommentMemberProjectionJpaEntity> projections = findProjectionMap(memberUuids);
 		return comments.stream()
@@ -67,7 +75,7 @@ public class CommentPersistenceAdapter implements CommentCommandPort, CommentQue
 	}
 
 	private CommentQueryResult toQueryResult(
-			CommentJpaEntity entity,
+			StoryCommentJpaEntity entity,
 			Map<UUID, CommentMemberProjectionJpaEntity> projections
 	) {
 		CommentMemberProjectionJpaEntity projection = projections.get(entity.getMemberUuid());
@@ -75,11 +83,14 @@ public class CommentPersistenceAdapter implements CommentCommandPort, CommentQue
 				entity.getCommentUuid(),
 				entity.getStoryUuid(),
 				entity.getMemberUuid(),
+				entity.getParentCommentUuid(),
 				projection == null ? null : projection.getNickname(),
 				projection == null ? null : projection.getProfileImage(),
-				projection == null ? null : projection.getMemberStatus(),
-				entity.getContent(),
-				entity.getLikeCount(),
+				projection == null || projection.getMemberStatus() == null
+						? null
+						: projection.getMemberStatus().name(),
+				entity.getCommentContent(),
+				entity.getCommentLikeCount(),
 				entity.getCreatedAt(),
 				entity.getUpdatedAt()
 		);
