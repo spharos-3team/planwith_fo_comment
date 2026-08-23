@@ -199,6 +199,10 @@ public class StoryComment {
 		return !isDeleted();
 	}
 
+	public boolean isUpdated() {
+		return createdAt != null && updatedAt != null && updatedAt.isAfter(createdAt);
+	}
+
 	private void assertOwnedBy(UUID requesterMemberUuid) {
 		if (!memberUuid.equals(requesterMemberUuid)) {
 			throw new CommentOwnerMismatchException(commentUuid);

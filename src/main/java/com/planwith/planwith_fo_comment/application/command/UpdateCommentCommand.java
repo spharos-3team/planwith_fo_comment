@@ -5,6 +5,6 @@ import java.util.UUID;
 public record UpdateCommentCommand(
 		UUID commentUuid,
 		UUID memberUuid,
-		String content
+		String commentContent
 ) {
 }

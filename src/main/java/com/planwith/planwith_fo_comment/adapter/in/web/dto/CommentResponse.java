@@ -3,6 +3,7 @@ package com.planwith.planwith_fo_comment.adapter.in.web.dto;
 import java.time.Instant;
 import java.util.UUID;
 
+import com.fasterxml.jackson.annotation.JsonProperty;
 import com.planwith.planwith_fo_comment.application.query.CommentQueryResult;
 
 import io.swagger.v3.oas.annotations.media.Schema;
@@ -23,7 +24,9 @@ public record CommentResponse(
 		Boolean commentEnabled,
 		String storyStatus,
 		Instant createdAt,
-		Instant updatedAt
+		Instant updatedAt,
+		@JsonProperty("isUpdated")
+		boolean isUpdated
 ) {
 
 	public static CommentResponse from(CommentQueryResult result) {
@@ -42,7 +45,12 @@ public record CommentResponse(
 				result.commentEnabled(),
 				result.storyStatus(),
 				result.createdAt(),
-				result.updatedAt()
+				result.updatedAt(),
+				isUpdated(result.createdAt(), result.updatedAt())
 		);
+	}
+
+	private static boolean isUpdated(Instant createdAt, Instant updatedAt) {
+		return createdAt != null && updatedAt != null && updatedAt.isAfter(createdAt);
 	}
 }

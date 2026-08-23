@@ -63,7 +63,7 @@ public class CommentCommandController {
 
 	// 댓글 수정
 	@PatchMapping("/{commentUuid}")
-	@Operation(summary = "댓글 수정")
+	@Operation(summary = "댓글 수정", description = "댓글 작성자만 수정할 수 있다. 수정 시 updated_at을 갱신한다.")
 	public ResponseEntity<CommentResponse> updateComment(
 			@RequestHeader(value = "X-Member-Uuid", required = false) UUID memberUuid,
 			@PathVariable UUID commentUuid,
@@ -74,7 +74,7 @@ public class CommentCommandController {
 				updateCommentUseCase.update(new UpdateCommentCommand(
 						commentUuid,
 						memberUuid,
-						request.content()
+						request.commentContent()
 				))
 		);
 		return ResponseEntity.ok(response);
