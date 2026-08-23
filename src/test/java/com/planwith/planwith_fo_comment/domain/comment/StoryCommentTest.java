@@ -3,6 +3,7 @@ package com.planwith.planwith_fo_comment.domain.comment;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 
+import java.time.Instant;
 import java.util.UUID;
 
 import org.junit.jupiter.api.Test;
@@ -86,6 +87,27 @@ class StoryCommentTest {
 		assertThat(comment.getDeletedAt()).isNotNull();
 		assertThatThrownBy(() -> comment.updateContent(ownerUuid, "다시"))
 				.isInstanceOf(CommentAlreadyDeletedException.class);
+	}
+
+	@Test
+	void updateContentIsAllowedOnlyForAuthorAndRefreshesUpdatedAt() throws InterruptedException {
+		UUID authorUuid = UUID.randomUUID();
+		UUID storyOwnerUuid = UUID.randomUUID();
+		StoryComment comment = StoryComment.createRoot(UUID.randomUUID(), authorUuid, "원본");
+		Instant createdAt = comment.getCreatedAt();
+		assertThat(comment.isUpdated()).isFalse();
+
+		assertThatThrownBy(() -> comment.updateContent(storyOwnerUuid, "스토리 주인 수정"))
+				.isInstanceOf(CommentOwnerMismatchException.class);
+		assertThatThrownBy(() -> comment.updateContent(UUID.randomUUID(), "다른 사용자 수정"))
+				.isInstanceOf(CommentOwnerMismatchException.class);
+		assertThat(comment.getCommentContent()).isEqualTo("원본");
+
+		Thread.sleep(10);
+		comment.updateContent(authorUuid, "작성자 수정");
+		assertThat(comment.getCommentContent()).isEqualTo("작성자 수정");
+		assertThat(comment.getUpdatedAt()).isAfter(createdAt);
+		assertThat(comment.isUpdated()).isTrue();
 	}
 
 	@Test

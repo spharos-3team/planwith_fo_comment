@@ -192,26 +192,44 @@ class CommentArchitectureIntegrationTests {
 	}
 
 	@Test
-	void updateAndDeleteFollowCommandRules() {
+	void updateAndDeleteFollowCommandRules() throws InterruptedException {
 		UUID memberUuid = UUID.randomUUID();
+		UUID storyOwnerUuid = UUID.randomUUID();
 		UUID storyUuid = UUID.randomUUID();
-		enableStory(storyUuid);
+		syncStoryProjectionUseCase.sync(new SyncStoryProjectionCommand(
+				storyUuid,
+				storyOwnerUuid,
+				true,
+				"ACTIVE",
+				1L
+		));
 		CommentQueryResult created = createCommentUseCase.create(
 				new CreateCommentCommand(storyUuid, memberUuid, "원본")
 		);
 
 		assertThatThrownBy(() -> updateCommentUseCase.update(
+				new UpdateCommentCommand(created.commentUuid(), null, "비회원")
+		)).isInstanceOf(LoginRequiredException.class);
+		assertThatThrownBy(() -> updateCommentUseCase.update(
 				new UpdateCommentCommand(created.commentUuid(), UUID.randomUUID(), "권한없음")
 		)).isInstanceOf(CommentOwnerMismatchException.class);
+		assertThatThrownBy(() -> updateCommentUseCase.update(
+				new UpdateCommentCommand(created.commentUuid(), storyOwnerUuid, "스토리 주인")
+		)).isInstanceOf(CommentOwnerMismatchException.class);
 
+		Thread.sleep(10);
 		CommentQueryResult updated = updateCommentUseCase.update(
 				new UpdateCommentCommand(created.commentUuid(), memberUuid, "수정됨")
 		);
 		assertThat(updated.commentContent()).isEqualTo("수정됨");
+		assertThat(updated.updatedAt()).isAfter(created.createdAt());
 
 		deleteCommentUseCase.delete(new DeleteCommentCommand(created.commentUuid(), memberUuid));
 		assertThatThrownBy(() -> getCommentUseCase.get(new GetCommentQuery(created.commentUuid())))
 				.isInstanceOf(CommentNotFoundException.class);
+		assertThatThrownBy(() -> updateCommentUseCase.update(
+				new UpdateCommentCommand(created.commentUuid(), memberUuid, "삭제 후 수정")
+		)).isInstanceOf(CommentNotFoundException.class);
 	}
 
 	@Test

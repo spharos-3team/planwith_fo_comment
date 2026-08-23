@@ -84,16 +84,18 @@ class CommentWebAdapterIntegrationTests {
 				.andExpect(jsonPath("$.storyUuid").value(storyUuid.toString()))
 				.andExpect(jsonPath("$.parentCommentUuid").isEmpty());
 
+		Thread.sleep(10);
 		mockMvc.perform(patch("/api/planwith-fo-comment/comments/{commentUuid}", commentUuid)
 						.header("X-Member-Uuid", memberUuid)
 						.contentType(MediaType.APPLICATION_JSON)
 						.content("""
 								{
-								  "content": "수정된 웹 댓글"
+								  "commentContent": "수정된 웹 댓글"
 								}
 								"""))
 				.andExpect(status().isOk())
-				.andExpect(jsonPath("$.commentContent").value("수정된 웹 댓글"));
+				.andExpect(jsonPath("$.commentContent").value("수정된 웹 댓글"))
+				.andExpect(jsonPath("$.isUpdated").value(true));
 
 		mockMvc.perform(delete("/api/planwith-fo-comment/comments/{commentUuid}", commentUuid)
 						.header("X-Member-Uuid", memberUuid))
@@ -298,7 +300,7 @@ class CommentWebAdapterIntegrationTests {
 						.contentType(MediaType.APPLICATION_JSON)
 						.content("""
 								{
-								  "content": "수정된 이전 댓글"
+								  "commentContent": "수정된 이전 댓글"
 								}
 								"""))
 				.andExpect(status().isOk());
@@ -364,6 +366,92 @@ class CommentWebAdapterIntegrationTests {
 								""".formatted(disabledStoryUuid)))
 				.andExpect(status().isForbidden())
 				.andExpect(jsonPath("$.code").value("COMMENT_NOT_ALLOWED"));
+	}
+
+	@Test
+	void updateCommentAllowsAuthorOnlyAndRejectsOthers() throws Exception {
+		UUID storyUuid = UUID.randomUUID();
+		UUID authorUuid = UUID.randomUUID();
+		UUID storyOwnerUuid = UUID.randomUUID();
+		syncStoryProjectionUseCase.sync(new SyncStoryProjectionCommand(
+				storyUuid,
+				storyOwnerUuid,
+				true,
+				"ACTIVE",
+				1L
+		));
+
+		MvcResult created = mockMvc.perform(post("/api/planwith-fo-comment/comments")
+						.header("X-Member-Uuid", authorUuid)
+						.contentType(MediaType.APPLICATION_JSON)
+						.content("""
+								{
+								  "storyUuid": "%s",
+								  "commentContent": "원본 댓글"
+								}
+								""".formatted(storyUuid)))
+				.andExpect(status().isCreated())
+				.andReturn();
+		String commentUuid = objectMapper.readTree(created.getResponse().getContentAsString())
+				.get("commentUuid")
+				.asText();
+
+		mockMvc.perform(patch("/api/planwith-fo-comment/comments/{commentUuid}", commentUuid)
+						.contentType(MediaType.APPLICATION_JSON)
+						.content("""
+								{
+								  "commentContent": "비회원 수정"
+								}
+								"""))
+				.andExpect(status().isUnauthorized())
+				.andExpect(jsonPath("$.code").value("LOGIN_REQUIRED"));
+
+		mockMvc.perform(patch("/api/planwith-fo-comment/comments/{commentUuid}", commentUuid)
+						.header("X-Member-Uuid", UUID.randomUUID())
+						.contentType(MediaType.APPLICATION_JSON)
+						.content("""
+								{
+								  "commentContent": "다른 사용자 수정"
+								}
+								"""))
+				.andExpect(status().isForbidden())
+				.andExpect(jsonPath("$.code").value("COMMENT_OWNER_MISMATCH"));
+
+		mockMvc.perform(patch("/api/planwith-fo-comment/comments/{commentUuid}", commentUuid)
+						.header("X-Member-Uuid", storyOwnerUuid)
+						.contentType(MediaType.APPLICATION_JSON)
+						.content("""
+								{
+								  "commentContent": "스토리 주인 수정"
+								}
+								"""))
+				.andExpect(status().isForbidden())
+				.andExpect(jsonPath("$.code").value("COMMENT_OWNER_MISMATCH"));
+
+		Thread.sleep(10);
+		mockMvc.perform(patch("/api/planwith-fo-comment/comments/{commentUuid}", commentUuid)
+						.header("X-Member-Uuid", authorUuid)
+						.contentType(MediaType.APPLICATION_JSON)
+						.content("""
+								{
+								  "commentContent": "작성자 수정"
+								}
+								"""))
+				.andExpect(status().isOk())
+				.andExpect(jsonPath("$.commentContent").value("작성자 수정"))
+				.andExpect(jsonPath("$.updatedAt").exists())
+				.andExpect(jsonPath("$.isUpdated").value(true));
+
+		mockMvc.perform(patch("/api/planwith-fo-comment/comments/{commentUuid}", commentUuid)
+						.header("X-Member-Uuid", authorUuid)
+						.contentType(MediaType.APPLICATION_JSON)
+						.content("""
+								{
+								  "content": "레거시 필드"
+								}
+								"""))
+				.andExpect(status().isBadRequest())
+				.andExpect(jsonPath("$.code").value("INVALID_REQUEST"));
 	}
 
 	@Test

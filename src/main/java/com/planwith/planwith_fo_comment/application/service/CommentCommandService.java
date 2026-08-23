@@ -64,10 +64,15 @@ public class CommentCommandService implements CreateCommentUseCase, UpdateCommen
 	@Transactional
 	public CommentQueryResult update(UpdateCommentCommand command) {
 		log.info("CommentCommandService : update : 댓글 수정 비즈니스 로직 시작");
+		log.debug(
+				"CommentCommandService : update : 댓글 수정 요청 데이터 확인 - commentUuid={}, memberUuid={}",
+				command.commentUuid(),
+				command.memberUuid()
+		);
 		commentWriteValidator.assertCanMutate(command.memberUuid());
 
 		StoryComment comment = findActiveComment(command.commentUuid());
-		comment.updateContent(command.memberUuid(), command.content());
+		comment.updateContent(command.memberUuid(), command.commentContent());
 		commentCommandPort.save(comment);
 		commentOutboxPort.saveCommentUpdated(comment);
 
