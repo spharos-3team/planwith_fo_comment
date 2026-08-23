@@ -5,11 +5,11 @@ import java.util.UUID;
 public record CreateCommentCommand(
 		UUID storyUuid,
 		UUID memberUuid,
-		String content,
+		String commentContent,
 		UUID parentCommentUuid
 ) {
 
-	public CreateCommentCommand(UUID storyUuid, UUID memberUuid, String content) {
-		this(storyUuid, memberUuid, content, null);
+	public CreateCommentCommand(UUID storyUuid, UUID memberUuid, String commentContent) {
+		this(storyUuid, memberUuid, commentContent, null);
 	}
 }

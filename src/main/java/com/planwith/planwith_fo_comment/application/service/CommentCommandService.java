@@ -38,9 +38,9 @@ public class CommentCommandService implements CreateCommentUseCase, UpdateCommen
 	@Override
 	@Transactional
 	public CommentQueryResult create(CreateCommentCommand command) {
-		log.info("CommentCommandService : create : 댓글 생성 비즈니스 로직 시작");
+		log.info("CommentCommandService : create : 댓글 작성 비즈니스 로직 시작");
 		log.debug(
-				"CommentCommandService : create : 댓글 생성 요청 데이터 확인 - storyUuid={}, memberUuid={}, parentCommentUuid={}",
+				"CommentCommandService : create : 댓글 작성 요청 데이터 확인 - storyUuid={}, memberUuid={}, parentCommentUuid={}",
 				command.storyUuid(),
 				command.memberUuid(),
 				command.parentCommentUuid()
@@ -52,7 +52,7 @@ public class CommentCommandService implements CreateCommentUseCase, UpdateCommen
 		commentOutboxPort.saveCommentCreated(comment);
 
 		log.info(
-				"CommentCommandService : create : 댓글 생성 완료 - commentUuid={}, storyUuid={}, parentCommentUuid={}",
+				"CommentCommandService : create : 댓글 작성 완료 - commentUuid={}, storyUuid={}, parentCommentUuid={}",
 				comment.getCommentUuid(),
 				comment.getStoryUuid(),
 				comment.getParentCommentUuid()
@@ -97,14 +97,14 @@ public class CommentCommandService implements CreateCommentUseCase, UpdateCommen
 
 	private StoryComment createComment(CreateCommentCommand command) {
 		if (command.parentCommentUuid() == null) {
-			return StoryComment.createRoot(command.storyUuid(), command.memberUuid(), command.content());
+			return StoryComment.createRoot(command.storyUuid(), command.memberUuid(), command.commentContent());
 		}
 
 		StoryComment parent = findActiveComment(command.parentCommentUuid());
 		if (!parent.getStoryUuid().equals(command.storyUuid())) {
 			throw new CommentNotFoundException(command.parentCommentUuid());
 		}
-		return StoryComment.createReply(parent, command.memberUuid(), command.content());
+		return StoryComment.createReply(parent, command.memberUuid(), command.commentContent());
 	}
 
 	private StoryComment findActiveComment(UUID commentUuid) {

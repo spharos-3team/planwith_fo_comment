@@ -42,6 +42,7 @@ import com.planwith.planwith_fo_comment.domain.exception.LoginRequiredException;
 import com.planwith.planwith_fo_comment.domain.exception.StoryDeletedException;
 import com.planwith.planwith_fo_comment.domain.exception.StoryNotFoundException;
 import com.planwith.planwith_fo_comment.domain.outbox.CommentOutboxEvent;
+import com.planwith.planwith_fo_comment.domain.outbox.OutboxStatus;
 
 @ActiveProfiles("test")
 @SpringBootTest
@@ -202,6 +203,49 @@ class CommentArchitectureIntegrationTests {
 		deleteCommentUseCase.delete(new DeleteCommentCommand(created.commentUuid(), memberUuid));
 		assertThatThrownBy(() -> getCommentUseCase.get(new GetCommentQuery(created.commentUuid())))
 				.isInstanceOf(CommentNotFoundException.class);
+	}
+
+	@Test
+	void createCommentReturnsPersistedResultImmediatelyWithoutWaitingForKafka() {
+		UUID storyUuid = UUID.randomUUID();
+		UUID memberUuid = UUID.randomUUID();
+		syncMemberProjectionUseCase.sync(new SyncMemberProjectionCommand(
+				memberUuid,
+				"작성자",
+				"https://image.example/writer.png",
+				"ACTIVE"
+		));
+		enableStory(storyUuid);
+
+		CommentQueryResult created = createCommentUseCase.create(
+				new CreateCommentCommand(storyUuid, memberUuid, "즉시 반환 댓글")
+		);
+
+		assertThat(created.commentUuid()).isNotNull();
+		assertThat(created.storyUuid()).isEqualTo(storyUuid);
+		assertThat(created.memberUuid()).isEqualTo(memberUuid);
+		assertThat(created.parentCommentUuid()).isNull();
+		assertThat(created.commentContent()).isEqualTo("즉시 반환 댓글");
+		assertThat(created.nickname()).isEqualTo("작성자");
+		assertThat(created.likeCount()).isZero();
+		assertThat(created.createdAt()).isNotNull();
+
+		CommentQueryResult persisted = getCommentUseCase.get(new GetCommentQuery(created.commentUuid()));
+		assertThat(persisted.commentUuid()).isEqualTo(created.commentUuid());
+		assertThat(persisted.commentContent()).isEqualTo(created.commentContent());
+
+		assertThat(commentOutboxPort.findPending(10))
+				.anyMatch(event -> event.getAggregateUuid().equals(created.commentUuid())
+						&& event.getEventType() == CommentEventType.COMMENT_CREATED
+						&& event.getStatus() == OutboxStatus.PENDING);
+
+		CommentQueryResult reply = createCommentUseCase.create(
+				new CreateCommentCommand(storyUuid, memberUuid, "즉시 반환 대댓글", created.commentUuid())
+		);
+		assertThat(reply.parentCommentUuid()).isEqualTo(created.commentUuid());
+		assertThat(reply.commentContent()).isEqualTo("즉시 반환 대댓글");
+		assertThat(getCommentUseCase.get(new GetCommentQuery(reply.commentUuid())).commentContent())
+				.isEqualTo("즉시 반환 대댓글");
 	}
 
 	@Test
