@@ -17,81 +17,77 @@ import lombok.extern.slf4j.Slf4j;
 @Service
 @RequiredArgsConstructor
 public class LikeEventCommandService implements HandleCommentLikedUseCase, HandleCommentUnlikedUseCase {
+	private static final String LIKE_TARGET_TYPE = "LIKE";
 
 	private final CommentCommandPort commentCommandPort;
 	private final CommentLikeProjectionPort commentLikeProjectionPort;
+	private final ProcessedCommentEventService processedCommentEventService;
 
 	@Override
 	@Transactional
 	public void handleLiked(HandleLikeCommand command) {
-		log.info(
-				"LikeEventCommandService : handleLiked : CommentLiked 소비 시작 - likeUuid={}, commentUuid={}",
-				command.likeUuid(),
-				command.commentUuid()
-		);
-
-		if (commentLikeProjectionPort.existsByLikeUuid(command.likeUuid())) {
-			log.warn(
-					"LikeEventCommandService : handleLiked : 중복 CommentLiked 이벤트 무시 - likeUuid={}",
-					command.likeUuid()
-			);
+		StoryComment comment = findActiveCommentForUpdate(command);
+		if (comment == null || shouldIgnore(command)) {
 			return;
 		}
-
-		StoryComment comment = commentCommandPort.findByUuid(command.commentUuid()).orElse(null);
-		if (comment == null || !comment.isActive()) {
-			log.warn(
-					"LikeEventCommandService : handleLiked : 로컬 댓글이 없어 like_count 반영을 건너뜀 - commentUuid={}",
-					command.commentUuid()
-			);
+		if (commentLikeProjectionPort.existsByLikeUuid(command.likeUuid())) {
+			record(command);
 			return;
 		}
 
 		comment.increaseLikeCount();
 		commentCommandPort.save(comment);
 		commentLikeProjectionPort.save(command.likeUuid(), command.commentUuid(), command.memberUuid());
-
-		log.info(
-				"LikeEventCommandService : handleLiked : comment_like_count 증가 완료 - commentUuid={}, likeCount={}",
-				comment.getCommentUuid(),
-				comment.getCommentLikeCount()
-		);
+		record(command);
+		log.info("CommentLiked applied - eventUuid={}, likeUuid={}, commentUuid={}",
+				eventUuid(command), command.likeUuid(), command.commentUuid());
 	}
 
 	@Override
 	@Transactional
 	public void handleUnliked(HandleLikeCommand command) {
-		log.info(
-				"LikeEventCommandService : handleUnliked : CommentUnliked 소비 시작 - likeUuid={}, commentUuid={}",
-				command.likeUuid(),
-				command.commentUuid()
-		);
+		StoryComment comment = findActiveCommentForUpdate(command);
+		if (comment == null || shouldIgnore(command)) {
+			return;
+		}
 
 		boolean removed = commentLikeProjectionPort.deleteByLikeUuid(command.likeUuid());
-		if (!removed) {
-			log.warn(
-					"LikeEventCommandService : handleUnliked : 처리된 Like가 없어 comment_like_count 감소를 건너뜀 - likeUuid={}",
-					command.likeUuid()
-			);
-			return;
+		if (removed) {
+			comment.decreaseLikeCount();
+			commentCommandPort.save(comment);
 		}
+		record(command);
+		log.info("CommentUnliked applied - eventUuid={}, likeUuid={}, commentUuid={}",
+				eventUuid(command), command.likeUuid(), command.commentUuid());
+	}
 
-		StoryComment comment = commentCommandPort.findByUuid(command.commentUuid()).orElse(null);
+	private StoryComment findActiveCommentForUpdate(HandleLikeCommand command) {
+		StoryComment comment = commentCommandPort.findByUuidForUpdate(command.commentUuid()).orElse(null);
 		if (comment == null || !comment.isActive()) {
-			log.warn(
-					"LikeEventCommandService : handleUnliked : 로컬 댓글이 없어 comment_like_count 감소를 건너뜀 - commentUuid={}",
-					command.commentUuid()
-			);
-			return;
+			log.warn("Like event ignored because comment is unavailable - commentUuid={}", command.commentUuid());
+			return null;
 		}
+		return comment;
+	}
 
-		comment.decreaseLikeCount();
-		commentCommandPort.save(comment);
+	private boolean shouldIgnore(HandleLikeCommand command) {
+		if (processedCommentEventService.isDuplicate(command.eventMetadata())) {
+			log.warn("Duplicate like event ignored - eventUuid={}", eventUuid(command));
+			return true;
+		}
+		if (processedCommentEventService.isOlderThanLatest(LIKE_TARGET_TYPE, command.eventMetadata())) {
+			record(command);
+			log.warn("Out-of-order like event ignored - eventUuid={}", eventUuid(command));
+			return true;
+		}
+		return false;
+	}
 
-		log.info(
-				"LikeEventCommandService : handleUnliked : comment_like_count 감소 완료 - commentUuid={}, likeCount={}",
-				comment.getCommentUuid(),
-				comment.getCommentLikeCount()
-		);
+	private void record(HandleLikeCommand command) {
+		processedCommentEventService.record(LIKE_TARGET_TYPE, command.eventMetadata());
+	}
+
+	private Object eventUuid(HandleLikeCommand command) {
+		return command.eventMetadata() == null ? null : command.eventMetadata().eventUuid();
 	}
 }

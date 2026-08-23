@@ -5,6 +5,11 @@ import java.util.UUID;
 public record HandleReportCommand(
 		UUID reportUuid,
 		UUID commentUuid,
-		UUID memberUuid
+		UUID memberUuid,
+		EventMetadata eventMetadata
 ) {
+
+	public HandleReportCommand(UUID reportUuid, UUID commentUuid, UUID memberUuid) {
+		this(reportUuid, commentUuid, memberUuid, null);
+	}
 }

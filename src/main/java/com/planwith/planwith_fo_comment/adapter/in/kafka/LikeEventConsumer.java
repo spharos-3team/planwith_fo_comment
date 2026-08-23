@@ -8,6 +8,7 @@ import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.planwith.planwith_fo_comment.adapter.in.kafka.event.CommentLikedEvent;
 import com.planwith.planwith_fo_comment.adapter.in.kafka.event.CommentUnlikedEvent;
+import com.planwith.planwith_fo_comment.application.command.EventMetadata;
 import com.planwith.planwith_fo_comment.application.command.HandleLikeCommand;
 import com.planwith.planwith_fo_comment.application.port.in.HandleCommentLikedUseCase;
 import com.planwith.planwith_fo_comment.application.port.in.HandleCommentUnlikedUseCase;
@@ -30,7 +31,18 @@ public class LikeEventConsumer {
 		log.info("LikeEventConsumer : consumeCommentLiked : CommentLikedEvent 수신");
 		CommentLikedEvent event = readLiked(message);
 		handleCommentLikedUseCase.handleLiked(
-				new HandleLikeCommand(event.likeUuid(), event.commentUuid(), event.memberUuid())
+				new HandleLikeCommand(
+						event.likeUuid(),
+						event.commentUuid(),
+						event.memberUuid(),
+						EventMetadata.validated(
+								event.eventUuid(),
+								event.eventType(),
+								event.targetUuid(),
+								event.occurredAt(),
+								event.likeUuid()
+						)
+				)
 		);
 	}
 
@@ -39,7 +51,18 @@ public class LikeEventConsumer {
 		log.info("LikeEventConsumer : consumeCommentUnliked : CommentUnlikedEvent 수신");
 		CommentUnlikedEvent event = readUnliked(message);
 		handleCommentUnlikedUseCase.handleUnliked(
-				new HandleLikeCommand(event.likeUuid(), event.commentUuid(), event.memberUuid())
+				new HandleLikeCommand(
+						event.likeUuid(),
+						event.commentUuid(),
+						event.memberUuid(),
+						EventMetadata.validated(
+								event.eventUuid(),
+								event.eventType(),
+								event.targetUuid(),
+								event.occurredAt(),
+								event.likeUuid()
+						)
+				)
 		);
 	}
 

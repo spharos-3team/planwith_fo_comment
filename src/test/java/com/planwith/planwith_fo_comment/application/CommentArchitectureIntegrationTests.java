@@ -3,6 +3,7 @@ package com.planwith.planwith_fo_comment.application;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 
+import java.time.Instant;
 import java.util.List;
 import java.util.UUID;
 
@@ -14,6 +15,7 @@ import org.springframework.transaction.annotation.Transactional;
 
 import com.planwith.planwith_fo_comment.application.command.CreateCommentCommand;
 import com.planwith.planwith_fo_comment.application.command.DeleteCommentCommand;
+import com.planwith.planwith_fo_comment.application.command.EventMetadata;
 import com.planwith.planwith_fo_comment.application.command.HandleLikeCommand;
 import com.planwith.planwith_fo_comment.application.command.HandleReportCommand;
 import com.planwith.planwith_fo_comment.application.command.MarkStoryDeletedCommand;
@@ -33,6 +35,8 @@ import com.planwith.planwith_fo_comment.application.port.in.SyncStoryProjectionU
 import com.planwith.planwith_fo_comment.application.port.in.UpdateCommentUseCase;
 import com.planwith.planwith_fo_comment.application.port.out.CommentOutboxPort;
 import com.planwith.planwith_fo_comment.application.port.out.CommentCommandPort;
+import com.planwith.planwith_fo_comment.application.port.out.MemberProjectionPort;
+import com.planwith.planwith_fo_comment.application.port.out.StoryProjectionPort;
 import com.planwith.planwith_fo_comment.application.query.CommentQueryResult;
 import com.planwith.planwith_fo_comment.application.query.CommentThreadResult;
 import com.planwith.planwith_fo_comment.application.query.GetCommentQuery;
@@ -98,6 +102,12 @@ class CommentArchitectureIntegrationTests {
 
 	@Autowired
 	private CommentCommandPort commentCommandPort;
+
+	@Autowired
+	private MemberProjectionPort memberProjectionPort;
+
+	@Autowired
+	private StoryProjectionPort storyProjectionPort;
 
 	@Test
 	void createCommentSavesOutboxInSameTransaction() {
@@ -402,6 +412,115 @@ class CommentArchitectureIntegrationTests {
 	}
 
 	@Test
+	void likeEventsIgnoreDuplicateAndOutOfOrderDeliveries() {
+		UUID storyUuid = UUID.randomUUID();
+		UUID memberUuid = UUID.randomUUID();
+		enableStory(storyUuid);
+		CommentQueryResult created = createCommentUseCase.create(
+				new CreateCommentCommand(storyUuid, memberUuid, "like consistency")
+		);
+		UUID likeUuid = UUID.randomUUID();
+		Instant baseTime = Instant.parse("2026-08-23T12:00:00Z");
+		EventMetadata liked = event("COMMENT_LIKED", likeUuid, baseTime);
+
+		handleCommentLikedUseCase.handleLiked(
+				new HandleLikeCommand(likeUuid, created.commentUuid(), memberUuid, liked)
+		);
+		handleCommentLikedUseCase.handleLiked(
+				new HandleLikeCommand(likeUuid, created.commentUuid(), memberUuid, liked)
+		);
+		assertThat(getCommentUseCase.get(new GetCommentQuery(created.commentUuid())).likeCount()).isEqualTo(1);
+
+		handleCommentUnlikedUseCase.handleUnliked(new HandleLikeCommand(
+				likeUuid,
+				created.commentUuid(),
+				memberUuid,
+				event("COMMENT_UNLIKED", likeUuid, baseTime.plusSeconds(10))
+		));
+		handleCommentLikedUseCase.handleLiked(new HandleLikeCommand(
+				likeUuid,
+				created.commentUuid(),
+				memberUuid,
+				event("COMMENT_LIKED", likeUuid, baseTime.plusSeconds(5))
+		));
+		assertThat(getCommentUseCase.get(new GetCommentQuery(created.commentUuid())).likeCount()).isZero();
+
+		handleCommentLikedUseCase.handleLiked(new HandleLikeCommand(
+				likeUuid,
+				created.commentUuid(),
+				memberUuid,
+				event("COMMENT_LIKED", likeUuid, baseTime.plusSeconds(20))
+		));
+		assertThat(getCommentUseCase.get(new GetCommentQuery(created.commentUuid())).likeCount()).isEqualTo(1);
+	}
+
+	@Test
+	void reportEventsIgnoreDuplicateEventUuidAcrossRedelivery() {
+		UUID storyUuid = UUID.randomUUID();
+		UUID memberUuid = UUID.randomUUID();
+		enableStory(storyUuid);
+		CommentQueryResult created = createCommentUseCase.create(
+				new CreateCommentCommand(storyUuid, memberUuid, "report consistency")
+		);
+		UUID eventUuid = UUID.randomUUID();
+		UUID firstReportUuid = UUID.randomUUID();
+		UUID secondReportUuid = UUID.randomUUID();
+		Instant occurredAt = Instant.parse("2026-08-23T12:00:00Z");
+
+		handleCommentReportedUseCase.handleReported(new HandleReportCommand(
+				firstReportUuid,
+				created.commentUuid(),
+				memberUuid,
+				new EventMetadata(eventUuid, "COMMENT_REPORTED", firstReportUuid, occurredAt)
+		));
+		handleCommentReportedUseCase.handleReported(new HandleReportCommand(
+				secondReportUuid,
+				created.commentUuid(),
+				memberUuid,
+				new EventMetadata(eventUuid, "COMMENT_REPORTED", secondReportUuid, occurredAt)
+		));
+
+		assertThat(getCommentUseCase.get(new GetCommentQuery(created.commentUuid())).reportCount()).isEqualTo(1);
+	}
+
+	@Test
+	void projectionEventsIgnoreDuplicateAndStaleVersions() {
+		UUID memberUuid = UUID.randomUUID();
+		Instant occurredAt = Instant.parse("2026-08-23T12:00:00Z");
+		EventMetadata memberEvent = event("MEMBER_UPDATED", memberUuid, occurredAt);
+		syncMemberProjectionUseCase.sync(new SyncMemberProjectionCommand(
+				memberUuid, "version-10", null, "ACTIVE", 10L, memberEvent
+		));
+		syncMemberProjectionUseCase.sync(new SyncMemberProjectionCommand(
+				memberUuid, "duplicate", null, "SUSPENDED", 11L, memberEvent
+		));
+		syncMemberProjectionUseCase.sync(new SyncMemberProjectionCommand(
+				memberUuid, "stale", null, "SUSPENDED", 9L,
+				event("MEMBER_UPDATED", memberUuid, occurredAt.plusSeconds(1))
+		));
+		assertThat(memberProjectionPort.findByMemberUuid(memberUuid).orElseThrow().getNickname())
+				.isEqualTo("version-10");
+
+		UUID storyUuid = UUID.randomUUID();
+		UUID ownerUuid = UUID.randomUUID();
+		EventMetadata storyEvent = event("STORY_UPDATED", storyUuid, occurredAt);
+		syncStoryProjectionUseCase.sync(new SyncStoryProjectionCommand(
+				storyUuid, ownerUuid, true, "ACTIVE", 10L, storyEvent
+		));
+		syncStoryProjectionUseCase.sync(new SyncStoryProjectionCommand(
+				storyUuid, UUID.randomUUID(), false, "ACTIVE", 11L, storyEvent
+		));
+		syncStoryProjectionUseCase.sync(new SyncStoryProjectionCommand(
+				storyUuid, UUID.randomUUID(), false, "ACTIVE", 9L,
+				event("STORY_UPDATED", storyUuid, occurredAt.plusSeconds(1))
+		));
+		assertThat(storyProjectionPort.findByStoryUuid(storyUuid).orElseThrow().getOwnerMemberUuid())
+				.isEqualTo(ownerUuid);
+		assertThat(storyProjectionPort.findByStoryUuid(storyUuid).orElseThrow().getSourceVersion())
+				.isEqualTo(10L);
+	}
+
+	@Test
 	void commentReportedEventUpdatesReportCountProjection() {
 		UUID memberUuid = UUID.randomUUID();
 		UUID storyUuid = UUID.randomUUID();
@@ -543,5 +662,9 @@ class CommentArchitectureIntegrationTests {
 				"ACTIVE",
 				1L
 		));
+	}
+
+	private EventMetadata event(String eventType, UUID targetUuid, Instant occurredAt) {
+		return new EventMetadata(UUID.randomUUID(), eventType, targetUuid, occurredAt);
 	}
 }

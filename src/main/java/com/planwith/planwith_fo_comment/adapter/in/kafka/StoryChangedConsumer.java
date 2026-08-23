@@ -8,6 +8,7 @@ import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.planwith.planwith_fo_comment.adapter.in.kafka.event.StoryChangedEvent;
 import com.planwith.planwith_fo_comment.adapter.in.kafka.event.StoryDeletedEvent;
+import com.planwith.planwith_fo_comment.application.command.EventMetadata;
 import com.planwith.planwith_fo_comment.application.command.MarkStoryDeletedCommand;
 import com.planwith.planwith_fo_comment.application.command.SyncStoryProjectionCommand;
 import com.planwith.planwith_fo_comment.application.port.in.MarkStoryDeletedUseCase;
@@ -42,7 +43,18 @@ public class StoryChangedConsumer {
 	public void consumeDeleted(String message) {
 		log.info("StoryChangedConsumer : consumeDeleted : StoryDeleted 이벤트 수신");
 		StoryDeletedEvent event = readDeleted(message);
-		markStoryDeletedUseCase.markDeleted(new MarkStoryDeletedCommand(event.storyUuid(), event.sourceVersion()));
+		markStoryDeletedUseCase.markDeleted(new MarkStoryDeletedCommand(
+				event.storyUuid(),
+				event.sourceVersion(),
+				EventMetadata.validatedVersioned(
+						event.eventUuid(),
+						event.eventType(),
+						event.targetUuid(),
+						event.occurredAt(),
+						event.storyUuid(),
+						event.sourceVersion()
+				)
+		));
 	}
 
 	private void sync(StoryChangedEvent event) {
@@ -51,7 +63,15 @@ public class StoryChangedConsumer {
 				event.ownerMemberUuid(),
 				event.commentEnabled() == null || event.commentEnabled(),
 				event.storyStatus(),
-				event.sourceVersion()
+				event.sourceVersion(),
+				EventMetadata.validatedVersioned(
+						event.eventUuid(),
+						event.eventType(),
+						event.targetUuid(),
+						event.occurredAt(),
+						event.storyUuid(),
+						event.sourceVersion()
+				)
 		));
 	}
 

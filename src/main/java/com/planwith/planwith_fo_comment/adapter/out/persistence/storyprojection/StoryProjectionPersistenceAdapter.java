@@ -37,6 +37,12 @@ public class StoryProjectionPersistenceAdapter implements StoryProjectionPort {
 	}
 
 	@Override
+	public Optional<StoryProjection> findByStoryUuidForUpdate(UUID storyUuid) {
+		return storyProjectionJpaRepository.findByStoryUuidForUpdate(storyUuid)
+				.map(this::toDomain);
+	}
+
+	@Override
 	public List<StoryProjection> findByStoryUuids(Collection<UUID> storyUuids) {
 		if (storyUuids.isEmpty()) {
 			return List.of();

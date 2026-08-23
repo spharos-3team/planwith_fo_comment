@@ -10,4 +10,6 @@ public interface CommentCommandPort {
 	void save(StoryComment comment);
 
 	Optional<StoryComment> findByUuid(UUID commentUuid);
+
+	Optional<StoryComment> findByUuidForUpdate(UUID commentUuid);
 }

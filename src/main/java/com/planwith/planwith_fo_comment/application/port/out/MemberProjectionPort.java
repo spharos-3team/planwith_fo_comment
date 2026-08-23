@@ -10,4 +10,6 @@ public interface MemberProjectionPort {
 	void save(MemberProjection memberProjection);
 
 	Optional<MemberProjection> findByMemberUuid(UUID memberUuid);
+
+	Optional<MemberProjection> findByMemberUuidForUpdate(UUID memberUuid);
 }

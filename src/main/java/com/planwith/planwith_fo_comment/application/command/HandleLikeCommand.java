@@ -5,6 +5,11 @@ import java.util.UUID;
 public record HandleLikeCommand(
 		UUID likeUuid,
 		UUID commentUuid,
-		UUID memberUuid
+		UUID memberUuid,
+		EventMetadata eventMetadata
 ) {
+
+	public HandleLikeCommand(UUID likeUuid, UUID commentUuid, UUID memberUuid) {
+		this(likeUuid, commentUuid, memberUuid, null);
+	}
 }
