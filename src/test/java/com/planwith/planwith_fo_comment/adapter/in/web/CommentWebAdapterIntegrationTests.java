@@ -1,0 +1,101 @@
+package com.planwith.planwith_fo_comment.adapter.in.web;
+
+import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.delete;
+import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
+import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.patch;
+import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
+import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
+import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
+
+import java.util.UUID;
+
+import org.junit.jupiter.api.Test;
+import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.boot.test.context.SpringBootTest;
+import org.springframework.boot.webmvc.test.autoconfigure.AutoConfigureMockMvc;
+import org.springframework.http.MediaType;
+import org.springframework.test.context.ActiveProfiles;
+import org.springframework.test.web.servlet.MockMvc;
+import org.springframework.test.web.servlet.MvcResult;
+import org.springframework.transaction.annotation.Transactional;
+
+import com.fasterxml.jackson.databind.JsonNode;
+import com.fasterxml.jackson.databind.ObjectMapper;
+
+@ActiveProfiles("test")
+@SpringBootTest
+@AutoConfigureMockMvc
+@Transactional
+class CommentWebAdapterIntegrationTests {
+
+	@Autowired
+	private MockMvc mockMvc;
+
+	@Autowired
+	private ObjectMapper objectMapper;
+
+	@Test
+	void createListDetailUpdateAndDeleteThroughWebAdapter() throws Exception {
+		UUID storyUuid = UUID.randomUUID();
+		UUID memberUuid = UUID.randomUUID();
+
+		MvcResult created = mockMvc.perform(post("/api/planwith-fo-comment/comments")
+						.header("X-Member-Uuid", memberUuid)
+						.contentType(MediaType.APPLICATION_JSON)
+						.content("""
+								{
+								  "storyUuid": "%s",
+								  "content": "웹 어댑터 댓글"
+								}
+								""".formatted(storyUuid)))
+				.andExpect(status().isCreated())
+				.andExpect(jsonPath("$.commentUuid").exists())
+				.andExpect(jsonPath("$.content").value("웹 어댑터 댓글"))
+				.andReturn();
+
+		JsonNode body = objectMapper.readTree(created.getResponse().getContentAsString());
+		String commentUuid = body.get("commentUuid").asText();
+
+		mockMvc.perform(get("/api/planwith-fo-comment/comments")
+						.param("storyUuid", storyUuid.toString()))
+				.andExpect(status().isOk())
+				.andExpect(jsonPath("$[0].commentUuid").value(commentUuid));
+
+		mockMvc.perform(get("/api/planwith-fo-comment/comments/{commentUuid}", commentUuid))
+				.andExpect(status().isOk())
+				.andExpect(jsonPath("$.storyUuid").value(storyUuid.toString()));
+
+		mockMvc.perform(patch("/api/planwith-fo-comment/comments/{commentUuid}", commentUuid)
+						.header("X-Member-Uuid", memberUuid)
+						.contentType(MediaType.APPLICATION_JSON)
+						.content("""
+								{
+								  "content": "수정된 웹 댓글"
+								}
+								"""))
+				.andExpect(status().isOk())
+				.andExpect(jsonPath("$.content").value("수정된 웹 댓글"));
+
+		mockMvc.perform(delete("/api/planwith-fo-comment/comments/{commentUuid}", commentUuid)
+						.header("X-Member-Uuid", memberUuid))
+				.andExpect(status().isNoContent());
+
+		mockMvc.perform(get("/api/planwith-fo-comment/comments/{commentUuid}", commentUuid))
+				.andExpect(status().isNotFound())
+				.andExpect(jsonPath("$.code").value("COMMENT_NOT_FOUND"));
+	}
+
+	@Test
+	void createCommentFailsWithoutMemberHeader() throws Exception {
+		mockMvc.perform(post("/api/planwith-fo-comment/comments")
+						.contentType(MediaType.APPLICATION_JSON)
+						.content("""
+								{
+								  "storyUuid": "11111111-1111-1111-1111-111111111111",
+								  "content": "헤더 없음"
+								}
+								"""))
+				.andExpect(status().isBadRequest())
+				.andExpect(jsonPath("$.code").value("INVALID_REQUEST"));
+	}
+}
