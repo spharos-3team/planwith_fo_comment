@@ -37,6 +37,9 @@ import com.planwith.planwith_fo_comment.application.query.GetCommentQuery;
 import com.planwith.planwith_fo_comment.application.query.GetCommentsByStoryQuery;
 import com.planwith.planwith_fo_comment.domain.comment.CommentEventType;
 import com.planwith.planwith_fo_comment.domain.comment.CommentSort;
+import com.planwith.planwith_fo_comment.domain.comment.StoryComment;
+import com.planwith.planwith_fo_comment.domain.exception.CommentAlreadyDeletedException;
+import com.planwith.planwith_fo_comment.domain.exception.CommentDeleteForbiddenException;
 import com.planwith.planwith_fo_comment.domain.exception.CommentNotAllowedException;
 import com.planwith.planwith_fo_comment.domain.exception.CommentNotFoundException;
 import com.planwith.planwith_fo_comment.domain.exception.CommentOwnerMismatchException;
@@ -44,6 +47,7 @@ import com.planwith.planwith_fo_comment.domain.exception.InvalidReplyException;
 import com.planwith.planwith_fo_comment.domain.exception.LoginRequiredException;
 import com.planwith.planwith_fo_comment.domain.exception.StoryDeletedException;
 import com.planwith.planwith_fo_comment.domain.exception.StoryNotFoundException;
+import com.planwith.planwith_fo_comment.domain.memberprojection.MemberRole;
 import com.planwith.planwith_fo_comment.domain.outbox.CommentOutboxEvent;
 import com.planwith.planwith_fo_comment.domain.outbox.OutboxStatus;
 
@@ -230,6 +234,70 @@ class CommentArchitectureIntegrationTests {
 		assertThatThrownBy(() -> updateCommentUseCase.update(
 				new UpdateCommentCommand(created.commentUuid(), memberUuid, "삭제 후 수정")
 		)).isInstanceOf(CommentNotFoundException.class);
+		assertThatThrownBy(() -> deleteCommentUseCase.delete(
+				new DeleteCommentCommand(created.commentUuid(), memberUuid)
+		)).isInstanceOf(CommentAlreadyDeletedException.class);
+	}
+
+	@Test
+	void deleteCommentAllowsAuthorStoryOwnerAndAdminAndKeepsReplies() {
+		UUID storyUuid = UUID.randomUUID();
+		UUID authorUuid = UUID.randomUUID();
+		UUID storyOwnerUuid = UUID.randomUUID();
+		UUID otherUuid = UUID.randomUUID();
+		UUID adminUuid = UUID.randomUUID();
+		syncStoryProjectionUseCase.sync(new SyncStoryProjectionCommand(
+				storyUuid,
+				storyOwnerUuid,
+				true,
+				"ACTIVE",
+				1L
+		));
+
+		CommentQueryResult authorComment = createCommentUseCase.create(
+				new CreateCommentCommand(storyUuid, authorUuid, "작성자 댓글")
+		);
+		CommentQueryResult reply = createCommentUseCase.create(
+				new CreateCommentCommand(storyUuid, otherUuid, "대댓글", authorComment.commentUuid())
+		);
+		CommentQueryResult ownerTarget = createCommentUseCase.create(
+				new CreateCommentCommand(storyUuid, authorUuid, "스토리 주인이 지울 댓글")
+		);
+		CommentQueryResult adminTarget = createCommentUseCase.create(
+				new CreateCommentCommand(storyUuid, authorUuid, "운영자가 지울 댓글")
+		);
+
+		assertThatThrownBy(() -> deleteCommentUseCase.delete(
+				new DeleteCommentCommand(authorComment.commentUuid(), null)
+		)).isInstanceOf(LoginRequiredException.class);
+		assertThatThrownBy(() -> deleteCommentUseCase.delete(
+				new DeleteCommentCommand(authorComment.commentUuid(), otherUuid)
+		)).isInstanceOf(CommentDeleteForbiddenException.class);
+
+		deleteCommentUseCase.delete(new DeleteCommentCommand(authorComment.commentUuid(), authorUuid));
+		List<CommentThreadResult> afterAuthorDelete = getCommentsByStoryUseCase.getByStory(
+				new GetCommentsByStoryQuery(storyUuid, CommentSort.LATEST, storyOwnerUuid)
+		);
+		CommentThreadResult deletedParent = afterAuthorDelete.stream()
+				.filter(thread -> thread.commentUuid().equals(authorComment.commentUuid()))
+				.findFirst()
+				.orElseThrow();
+		assertThat(deletedParent.deleted()).isTrue();
+		assertThat(deletedParent.commentContent()).isEqualTo(StoryComment.DELETED_DISPLAY_CONTENT);
+		assertThat(deletedParent.replies()).extracting(CommentThreadResult::commentUuid)
+				.containsExactly(reply.commentUuid());
+		assertThat(deletedParent.replies().get(0).canDelete()).isTrue();
+
+		deleteCommentUseCase.delete(new DeleteCommentCommand(ownerTarget.commentUuid(), storyOwnerUuid));
+		deleteCommentUseCase.delete(new DeleteCommentCommand(
+				adminTarget.commentUuid(),
+				adminUuid,
+				MemberRole.ADMIN
+		));
+		assertThatThrownBy(() -> getCommentUseCase.get(new GetCommentQuery(ownerTarget.commentUuid())))
+				.isInstanceOf(CommentNotFoundException.class);
+		assertThatThrownBy(() -> getCommentUseCase.get(new GetCommentQuery(adminTarget.commentUuid())))
+				.isInstanceOf(CommentNotFoundException.class);
 	}
 
 	@Test

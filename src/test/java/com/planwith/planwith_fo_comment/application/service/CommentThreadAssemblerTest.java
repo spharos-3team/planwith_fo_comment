@@ -11,6 +11,8 @@ import org.junit.jupiter.api.Test;
 import com.planwith.planwith_fo_comment.application.query.CommentQueryResult;
 import com.planwith.planwith_fo_comment.application.query.CommentThreadResult;
 import com.planwith.planwith_fo_comment.domain.comment.CommentSort;
+import com.planwith.planwith_fo_comment.domain.comment.StoryComment;
+import com.planwith.planwith_fo_comment.domain.memberprojection.MemberRole;
 
 class CommentThreadAssemblerTest {
 
@@ -89,6 +91,35 @@ class CommentThreadAssemblerTest {
 		assertThat(threads.get(0).replies()).isEmpty();
 	}
 
+	@Test
+	void assembleKeepsDeletedParentWithRepliesAndGrantsStoryOwnerDelete() {
+		Instant now = Instant.parse("2026-08-23T12:00:00Z");
+		UUID storyOwnerUuid = UUID.randomUUID();
+		UUID authorUuid = UUID.randomUUID();
+		UUID rootUuid = UUID.randomUUID();
+		UUID replyUuid = UUID.randomUUID();
+
+		List<CommentThreadResult> threads = assembler.assemble(
+				List.of(
+						result(rootUuid, null, authorUuid, storyOwnerUuid, "원본", 0, now, now, true),
+						result(replyUuid, rootUuid, authorUuid, storyOwnerUuid, "대댓글", 0, now.plusSeconds(1), now.plusSeconds(1), false)
+				),
+				CommentSort.LATEST,
+				storyOwnerUuid,
+				MemberRole.USER
+		);
+
+		assertThat(threads).hasSize(1);
+		assertThat(threads.get(0).deleted()).isTrue();
+		assertThat(threads.get(0).commentContent()).isEqualTo(StoryComment.DELETED_DISPLAY_CONTENT);
+		assertThat(threads.get(0).canEdit()).isFalse();
+		assertThat(threads.get(0).canDelete()).isFalse();
+		assertThat(threads.get(0).replies()).extracting(CommentThreadResult::commentUuid)
+				.containsExactly(replyUuid);
+		assertThat(threads.get(0).replies().get(0).canDelete()).isTrue();
+		assertThat(threads.get(0).replies().get(0).canEdit()).isFalse();
+	}
+
 	private CommentQueryResult result(
 			UUID commentUuid,
 			UUID parentCommentUuid,
@@ -97,6 +128,20 @@ class CommentThreadAssemblerTest {
 			long likeCount,
 			Instant createdAt,
 			Instant updatedAt
+	) {
+		return result(commentUuid, parentCommentUuid, memberUuid, UUID.randomUUID(), content, likeCount, createdAt, updatedAt, false);
+	}
+
+	private CommentQueryResult result(
+			UUID commentUuid,
+			UUID parentCommentUuid,
+			UUID memberUuid,
+			UUID storyOwnerUuid,
+			String content,
+			long likeCount,
+			Instant createdAt,
+			Instant updatedAt,
+			boolean deleted
 	) {
 		return new CommentQueryResult(
 				commentUuid,
@@ -109,11 +154,12 @@ class CommentThreadAssemblerTest {
 				content,
 				likeCount,
 				0L,
-				UUID.randomUUID(),
+				storyOwnerUuid,
 				true,
 				"ACTIVE",
 				createdAt,
-				updatedAt
+				updatedAt,
+				deleted
 		);
 	}
 }

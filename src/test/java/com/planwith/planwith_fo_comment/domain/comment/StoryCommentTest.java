@@ -58,7 +58,7 @@ class StoryCommentTest {
 	void rejectReplyToDeletedOrHiddenParent() {
 		UUID ownerUuid = UUID.randomUUID();
 		StoryComment deletedParent = StoryComment.createRoot(UUID.randomUUID(), ownerUuid, "삭제 예정");
-		deletedParent.delete(ownerUuid);
+		deletedParent.delete();
 
 		assertThatThrownBy(() -> StoryComment.createReply(deletedParent, UUID.randomUUID(), "대댓글"))
 				.isInstanceOf(CommentAlreadyDeletedException.class);
@@ -79,12 +79,11 @@ class StoryCommentTest {
 		comment.updateContent(ownerUuid, "수정");
 		assertThat(comment.getCommentContent()).isEqualTo("수정");
 
-		assertThatThrownBy(() -> comment.delete(UUID.randomUUID()))
-				.isInstanceOf(CommentOwnerMismatchException.class);
-
-		comment.delete(ownerUuid);
+		comment.delete();
 		assertThat(comment.isDeleted()).isTrue();
 		assertThat(comment.getDeletedAt()).isNotNull();
+		assertThatThrownBy(comment::delete)
+				.isInstanceOf(CommentAlreadyDeletedException.class);
 		assertThatThrownBy(() -> comment.updateContent(ownerUuid, "다시"))
 				.isInstanceOf(CommentAlreadyDeletedException.class);
 	}

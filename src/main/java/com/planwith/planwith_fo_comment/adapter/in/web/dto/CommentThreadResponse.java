@@ -22,6 +22,8 @@ public record CommentThreadResponse(
 		boolean isUpdated,
 		boolean canEdit,
 		boolean canDelete,
+		@JsonProperty("isDeleted")
+		boolean isDeleted,
 		List<CommentThreadResponse> replies
 ) {
 
@@ -37,6 +39,7 @@ public record CommentThreadResponse(
 				result.isUpdated(),
 				result.canEdit(),
 				result.canDelete(),
+				result.deleted(),
 				result.replies() == null
 						? List.of()
 						: result.replies().stream().map(CommentThreadResponse::from).toList()

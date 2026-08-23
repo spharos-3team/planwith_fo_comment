@@ -23,6 +23,7 @@ import com.planwith.planwith_fo_comment.application.command.UpdateCommentCommand
 import com.planwith.planwith_fo_comment.application.port.in.CreateCommentUseCase;
 import com.planwith.planwith_fo_comment.application.port.in.DeleteCommentUseCase;
 import com.planwith.planwith_fo_comment.application.port.in.UpdateCommentUseCase;
+import com.planwith.planwith_fo_comment.domain.memberprojection.MemberRole;
 
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.tags.Tag;
@@ -82,13 +83,18 @@ public class CommentCommandController {
 
 	// 댓글 삭제
 	@DeleteMapping("/{commentUuid}")
-	@Operation(summary = "댓글 삭제")
+	@Operation(summary = "댓글 삭제", description = "작성자, Story 소유자, 운영자만 Soft Delete할 수 있다.")
 	public ResponseEntity<Void> deleteComment(
 			@RequestHeader(value = "X-Member-Uuid", required = false) UUID memberUuid,
+			@RequestHeader(value = "X-Member-Role", required = false) String memberRole,
 			@PathVariable UUID commentUuid
 	) {
 		log.info("CommentCommandController : DELETE deleteComment : 댓글 삭제 요청");
-		deleteCommentUseCase.delete(new DeleteCommentCommand(commentUuid, memberUuid));
+		deleteCommentUseCase.delete(new DeleteCommentCommand(
+				commentUuid,
+				memberUuid,
+				MemberRole.from(memberRole)
+		));
 		return ResponseEntity.noContent().build();
 	}
 }

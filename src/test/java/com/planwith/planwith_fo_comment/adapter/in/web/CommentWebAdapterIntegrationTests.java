@@ -455,6 +455,113 @@ class CommentWebAdapterIntegrationTests {
 	}
 
 	@Test
+	void deleteCommentAllowsAuthorStoryOwnerAndAdminAndKeepsReplies() throws Exception {
+		UUID storyUuid = UUID.randomUUID();
+		UUID authorUuid = UUID.randomUUID();
+		UUID storyOwnerUuid = UUID.randomUUID();
+		UUID otherUuid = UUID.randomUUID();
+		syncStoryProjectionUseCase.sync(new SyncStoryProjectionCommand(
+				storyUuid,
+				storyOwnerUuid,
+				true,
+				"ACTIVE",
+				1L
+		));
+
+		MvcResult parent = mockMvc.perform(post("/api/planwith-fo-comment/comments")
+						.header("X-Member-Uuid", authorUuid)
+						.contentType(MediaType.APPLICATION_JSON)
+						.content("""
+								{
+								  "storyUuid": "%s",
+								  "commentContent": "부모 댓글"
+								}
+								""".formatted(storyUuid)))
+				.andExpect(status().isCreated())
+				.andReturn();
+		String parentUuid = objectMapper.readTree(parent.getResponse().getContentAsString())
+				.get("commentUuid")
+				.asText();
+
+		mockMvc.perform(post("/api/planwith-fo-comment/comments")
+						.header("X-Member-Uuid", otherUuid)
+						.contentType(MediaType.APPLICATION_JSON)
+						.content("""
+								{
+								  "storyUuid": "%s",
+								  "parentCommentUuid": "%s",
+								  "commentContent": "대댓글"
+								}
+								""".formatted(storyUuid, parentUuid)))
+				.andExpect(status().isCreated());
+
+		mockMvc.perform(delete("/api/planwith-fo-comment/comments/{commentUuid}", parentUuid))
+				.andExpect(status().isUnauthorized())
+				.andExpect(jsonPath("$.code").value("LOGIN_REQUIRED"));
+		mockMvc.perform(delete("/api/planwith-fo-comment/comments/{commentUuid}", parentUuid)
+						.header("X-Member-Uuid", otherUuid))
+				.andExpect(status().isForbidden())
+				.andExpect(jsonPath("$.code").value("COMMENT_DELETE_FORBIDDEN"));
+
+		mockMvc.perform(delete("/api/planwith-fo-comment/comments/{commentUuid}", parentUuid)
+						.header("X-Member-Uuid", authorUuid))
+				.andExpect(status().isNoContent());
+
+		mockMvc.perform(get("/api/planwith-fo-comment/stories/{storyUuid}/comments", storyUuid)
+						.header("X-Member-Uuid", storyOwnerUuid))
+				.andExpect(status().isOk())
+				.andExpect(jsonPath("$[0].commentUuid").value(parentUuid))
+				.andExpect(jsonPath("$[0].commentContent").value("삭제된 댓글입니다."))
+				.andExpect(jsonPath("$[0].isDeleted").value(true))
+				.andExpect(jsonPath("$[0].canEdit").value(false))
+				.andExpect(jsonPath("$[0].canDelete").value(false))
+				.andExpect(jsonPath("$[0].replies[0].commentContent").value("대댓글"))
+				.andExpect(jsonPath("$[0].replies[0].canDelete").value(true));
+
+		MvcResult ownerTarget = mockMvc.perform(post("/api/planwith-fo-comment/comments")
+						.header("X-Member-Uuid", authorUuid)
+						.contentType(MediaType.APPLICATION_JSON)
+						.content("""
+								{
+								  "storyUuid": "%s",
+								  "commentContent": "스토리 주인이 삭제"
+								}
+								""".formatted(storyUuid)))
+				.andExpect(status().isCreated())
+				.andReturn();
+		String ownerTargetUuid = objectMapper.readTree(ownerTarget.getResponse().getContentAsString())
+				.get("commentUuid")
+				.asText();
+		mockMvc.perform(delete("/api/planwith-fo-comment/comments/{commentUuid}", ownerTargetUuid)
+						.header("X-Member-Uuid", storyOwnerUuid))
+				.andExpect(status().isNoContent());
+
+		MvcResult adminTarget = mockMvc.perform(post("/api/planwith-fo-comment/comments")
+						.header("X-Member-Uuid", authorUuid)
+						.contentType(MediaType.APPLICATION_JSON)
+						.content("""
+								{
+								  "storyUuid": "%s",
+								  "commentContent": "운영자가 삭제"
+								}
+								""".formatted(storyUuid)))
+				.andExpect(status().isCreated())
+				.andReturn();
+		String adminTargetUuid = objectMapper.readTree(adminTarget.getResponse().getContentAsString())
+				.get("commentUuid")
+				.asText();
+		mockMvc.perform(delete("/api/planwith-fo-comment/comments/{commentUuid}", adminTargetUuid)
+						.header("X-Member-Uuid", UUID.randomUUID())
+						.header("X-Member-Role", "ADMIN"))
+				.andExpect(status().isNoContent());
+
+		mockMvc.perform(delete("/api/planwith-fo-comment/comments/{commentUuid}", parentUuid)
+						.header("X-Member-Uuid", authorUuid))
+				.andExpect(status().isConflict())
+				.andExpect(jsonPath("$.code").value("COMMENT_ALREADY_DELETED"));
+	}
+
+	@Test
 	void createCommentFailsWhenContentIsBlank() throws Exception {
 		UUID storyUuid = UUID.randomUUID();
 		enableStory(storyUuid);

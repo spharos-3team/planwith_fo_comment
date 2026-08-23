@@ -12,6 +12,7 @@ import org.springframework.web.bind.annotation.RestControllerAdvice;
 import org.springframework.web.method.annotation.MethodArgumentTypeMismatchException;
 
 import com.planwith.planwith_fo_comment.domain.exception.CommentAlreadyDeletedException;
+import com.planwith.planwith_fo_comment.domain.exception.CommentDeleteForbiddenException;
 import com.planwith.planwith_fo_comment.domain.exception.CommentNotAllowedException;
 import com.planwith.planwith_fo_comment.domain.exception.CommentNotFoundException;
 import com.planwith.planwith_fo_comment.domain.exception.CommentOwnerMismatchException;
@@ -65,6 +66,11 @@ public class GlobalExceptionHandler {
 	@ExceptionHandler(CommentAlreadyDeletedException.class)
 	public ResponseEntity<ApiErrorResponse> handleCommentAlreadyDeleted(CommentAlreadyDeletedException exception) {
 		return createErrorResponse(HttpStatus.CONFLICT, "COMMENT_ALREADY_DELETED", exception.getMessage());
+	}
+
+	@ExceptionHandler(CommentDeleteForbiddenException.class)
+	public ResponseEntity<ApiErrorResponse> handleCommentDeleteForbidden(CommentDeleteForbiddenException exception) {
+		return createErrorResponse(HttpStatus.FORBIDDEN, "COMMENT_DELETE_FORBIDDEN", exception.getMessage());
 	}
 
 	@ExceptionHandler(InvalidReplyException.class)

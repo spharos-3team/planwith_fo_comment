@@ -17,6 +17,7 @@ import com.planwith.planwith_fo_comment.application.port.out.MemberProjectionPor
 import com.planwith.planwith_fo_comment.application.port.out.StoryProjectionPort;
 import com.planwith.planwith_fo_comment.application.query.CommentQueryResult;
 import com.planwith.planwith_fo_comment.domain.comment.StoryComment;
+import com.planwith.planwith_fo_comment.domain.exception.CommentAlreadyDeletedException;
 import com.planwith.planwith_fo_comment.domain.exception.CommentNotFoundException;
 import com.planwith.planwith_fo_comment.domain.memberprojection.MemberProjection;
 import com.planwith.planwith_fo_comment.domain.storyprojection.StoryProjection;
@@ -34,6 +35,7 @@ public class CommentCommandService implements CreateCommentUseCase, UpdateCommen
 	private final MemberProjectionPort memberProjectionPort;
 	private final StoryProjectionPort storyProjectionPort;
 	private final CommentWriteValidator commentWriteValidator;
+	private final CommentDeleteAuthorizer commentDeleteAuthorizer;
 
 	@Override
 	@Transactional
@@ -87,15 +89,22 @@ public class CommentCommandService implements CreateCommentUseCase, UpdateCommen
 	@Transactional
 	public void delete(DeleteCommentCommand command) {
 		log.info("CommentCommandService : delete : 댓글 삭제 비즈니스 로직 시작");
+		log.debug(
+				"CommentCommandService : delete : 댓글 삭제 요청 데이터 확인 - commentUuid={}, memberUuid={}",
+				command.commentUuid(),
+				command.memberUuid()
+		);
 		commentWriteValidator.assertCanMutate(command.memberUuid());
 
-		StoryComment comment = findActiveComment(command.commentUuid());
-		comment.delete(command.memberUuid());
+		StoryComment comment = findCommentForDelete(command.commentUuid());
+		StoryProjection story = storyProjectionPort.findByStoryUuid(comment.getStoryUuid()).orElse(null);
+		commentDeleteAuthorizer.assertCanDelete(comment, command.memberUuid(), story, command.requesterRole());
+		comment.delete();
 		commentCommandPort.save(comment);
 		commentOutboxPort.saveCommentDeleted(comment);
 
 		log.info(
-				"CommentCommandService : delete : 댓글 삭제 완료 - commentUuid={}",
+				"CommentCommandService : delete : 댓글 Soft Delete 완료 - commentUuid={}",
 				comment.getCommentUuid()
 		);
 	}
@@ -117,6 +126,15 @@ public class CommentCommandService implements CreateCommentUseCase, UpdateCommen
 				.orElseThrow(() -> new CommentNotFoundException(commentUuid));
 		if (!comment.isActive()) {
 			throw new CommentNotFoundException(commentUuid);
+		}
+		return comment;
+	}
+
+	private StoryComment findCommentForDelete(UUID commentUuid) {
+		StoryComment comment = commentCommandPort.findByUuid(commentUuid)
+				.orElseThrow(() -> new CommentNotFoundException(commentUuid));
+		if (comment.isDeleted()) {
+			throw new CommentAlreadyDeletedException(commentUuid);
 		}
 		return comment;
 	}
@@ -145,7 +163,8 @@ public class CommentCommandService implements CreateCommentUseCase, UpdateCommen
 						? null
 						: storyProjection.getStoryStatus().name(),
 				comment.getCreatedAt(),
-				comment.getUpdatedAt()
+				comment.getUpdatedAt(),
+				comment.isDeleted()
 		);
 	}
 }

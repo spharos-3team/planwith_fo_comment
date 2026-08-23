@@ -18,6 +18,7 @@ public record CommentQueryResult(
 		Boolean commentEnabled,
 		String storyStatus,
 		Instant createdAt,
-		Instant updatedAt
+		Instant updatedAt,
+		boolean deleted
 ) {
 }

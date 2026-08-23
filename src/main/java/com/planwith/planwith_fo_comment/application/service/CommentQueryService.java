@@ -47,7 +47,8 @@ public class CommentQueryService implements GetCommentUseCase, GetCommentsByStor
 		List<CommentThreadResult> threads = commentThreadAssembler.assemble(
 				comments,
 				query.sort(),
-				query.viewerMemberUuid()
+				query.viewerMemberUuid(),
+				query.viewerRole()
 		);
 		log.debug(
 				"CommentQueryService : getByStory : Story별 댓글 목록 조회 완료 - storyUuid={}, rootCount={}",
