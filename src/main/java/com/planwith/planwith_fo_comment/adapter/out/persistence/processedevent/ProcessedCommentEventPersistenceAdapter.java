@@ -26,7 +26,7 @@ public class ProcessedCommentEventPersistenceAdapter implements ProcessedComment
 	public Optional<Instant> findLatestOccurredAt(String targetType, UUID targetUuid) {
 		return processedCommentEventJpaRepository
 				.findFirstByTargetTypeAndTargetUuidOrderByOccurredAtDesc(targetType, targetUuid)
-				.map(ProcessedCommentEventJpaEntity::getOccurredAt);
+				.map(entity -> entity.getOccurredAt());
 	}
 
 	@Override

@@ -89,9 +89,9 @@ public class CommentPersistenceAdapter implements CommentCommandPort, CommentQue
 				.findByStoryUuidAndModerationStatusAndDeletedAtIsNullOrderByReportCountDescCreatedAtDesc(
 						storyUuid,
 						ModerationStatus.HIDDEN
-				);
+					);
 		Set<UUID> memberUuids = comments.stream()
-				.map(StoryCommentJpaEntity::getMemberUuid)
+				.map(entity -> entity.getMemberUuid())
 				.collect(Collectors.toSet());
 		Map<UUID, CommentMemberProjectionJpaEntity> memberProjections = findMemberProjectionMap(memberUuids);
 
