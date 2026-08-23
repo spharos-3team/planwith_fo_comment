@@ -39,6 +39,7 @@ import com.planwith.planwith_fo_comment.application.query.GetCommentQuery;
 import com.planwith.planwith_fo_comment.application.query.GetCommentsByStoryQuery;
 import com.planwith.planwith_fo_comment.domain.comment.CommentEventType;
 import com.planwith.planwith_fo_comment.domain.comment.CommentSort;
+import com.planwith.planwith_fo_comment.domain.comment.ModerationStatus;
 import com.planwith.planwith_fo_comment.domain.comment.StoryComment;
 import com.planwith.planwith_fo_comment.domain.exception.CommentAlreadyDeletedException;
 import com.planwith.planwith_fo_comment.domain.exception.CommentDeleteForbiddenException;
@@ -425,11 +426,20 @@ class CommentArchitectureIntegrationTests {
 		);
 		assertThat(getCommentUseCase.get(new GetCommentQuery(created.commentUuid())).reportCount()).isEqualTo(2);
 
+		handleCommentReportedUseCase.handleReported(
+				new HandleReportCommand(UUID.randomUUID(), created.commentUuid(), memberUuid)
+		);
+		StoryComment hiddenComment = commentCommandPort.findByUuid(created.commentUuid()).orElseThrow();
+		assertThat(hiddenComment.getReportCount()).isEqualTo(3);
+		assertThat(hiddenComment.getModerationStatus()).isEqualTo(ModerationStatus.HIDDEN);
+		assertThat(hiddenComment.getHiddenAt()).isNotNull();
+		assertThat(getCommentsByStoryUseCase.getByStory(new GetCommentsByStoryQuery(storyUuid))).isEmpty();
+
 		UUID missingCommentUuid = UUID.randomUUID();
 		handleCommentReportedUseCase.handleReported(
 				new HandleReportCommand(UUID.randomUUID(), missingCommentUuid, memberUuid)
 		);
-		assertThat(getCommentUseCase.get(new GetCommentQuery(created.commentUuid())).reportCount()).isEqualTo(2);
+		assertThat(commentCommandPort.findByUuid(created.commentUuid()).orElseThrow().getReportCount()).isEqualTo(3);
 	}
 
 	@Test
