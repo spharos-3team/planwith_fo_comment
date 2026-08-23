@@ -182,7 +182,9 @@ class CommentWebAdapterIntegrationTests {
 				.andExpect(jsonPath("$.profileImage").value("https://image.example/profile.png"))
 				.andExpect(jsonPath("$.likeCount").value(0))
 				.andExpect(jsonPath("$.reportCount").value(0))
-				.andExpect(jsonPath("$.createdAt").exists());
+				.andExpect(jsonPath("$.createdAt").exists())
+				.andExpect(jsonPath("$.canEdit").value(true))
+				.andExpect(jsonPath("$.canDelete").value(true));
 	}
 
 	@Test
@@ -225,6 +227,63 @@ class CommentWebAdapterIntegrationTests {
 		mockMvc.perform(get("/api/planwith-fo-comment/stories/{storyUuid}/comments", storyUuid))
 				.andExpect(status().isOk())
 				.andExpect(jsonPath("$").isArray());
+	}
+
+	@Test
+	void commentResponsesExposeViewerSpecificEditAndDeletePermissions() throws Exception {
+		UUID storyUuid = UUID.randomUUID();
+		UUID authorUuid = UUID.randomUUID();
+		UUID storyOwnerUuid = UUID.randomUUID();
+		UUID otherMemberUuid = UUID.randomUUID();
+		syncStoryProjectionUseCase.sync(new SyncStoryProjectionCommand(
+				storyUuid,
+				storyOwnerUuid,
+				true,
+				"ACTIVE",
+				1L
+		));
+		String commentUuid = createComment(storyUuid, authorUuid, "permission response");
+
+		mockMvc.perform(get("/api/planwith-fo-comment/stories/{storyUuid}/comments", storyUuid))
+				.andExpect(status().isOk())
+				.andExpect(jsonPath("$[0].canEdit").value(false))
+				.andExpect(jsonPath("$[0].canDelete").value(false));
+
+		mockMvc.perform(get("/api/planwith-fo-comment/stories/{storyUuid}/comments", storyUuid)
+						.header("X-Member-Uuid", otherMemberUuid))
+				.andExpect(status().isOk())
+				.andExpect(jsonPath("$[0].canEdit").value(false))
+				.andExpect(jsonPath("$[0].canDelete").value(false));
+
+		mockMvc.perform(get("/api/planwith-fo-comment/stories/{storyUuid}/comments", storyUuid)
+						.header("X-Member-Uuid", authorUuid))
+				.andExpect(status().isOk())
+				.andExpect(jsonPath("$[0].canEdit").value(true))
+				.andExpect(jsonPath("$[0].canDelete").value(true));
+
+		mockMvc.perform(get("/api/planwith-fo-comment/comments/{commentUuid}", commentUuid))
+				.andExpect(status().isOk())
+				.andExpect(jsonPath("$.canEdit").value(false))
+				.andExpect(jsonPath("$.canDelete").value(false));
+
+		mockMvc.perform(get("/api/planwith-fo-comment/comments/{commentUuid}", commentUuid)
+						.header("X-Member-Uuid", authorUuid))
+				.andExpect(status().isOk())
+				.andExpect(jsonPath("$.canEdit").value(true))
+				.andExpect(jsonPath("$.canDelete").value(true));
+
+		mockMvc.perform(get("/api/planwith-fo-comment/comments/{commentUuid}", commentUuid)
+						.header("X-Member-Uuid", storyOwnerUuid))
+				.andExpect(status().isOk())
+				.andExpect(jsonPath("$.canEdit").value(false))
+				.andExpect(jsonPath("$.canDelete").value(true));
+
+		mockMvc.perform(get("/api/planwith-fo-comment/comments/{commentUuid}", commentUuid)
+						.header("X-Member-Uuid", otherMemberUuid)
+						.header("X-Member-Role", "ADMIN"))
+				.andExpect(status().isOk())
+				.andExpect(jsonPath("$.canEdit").value(false))
+				.andExpect(jsonPath("$.canDelete").value(true));
 	}
 
 	@Test

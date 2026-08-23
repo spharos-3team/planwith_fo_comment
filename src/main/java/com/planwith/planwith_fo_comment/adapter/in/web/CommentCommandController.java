@@ -23,6 +23,8 @@ import com.planwith.planwith_fo_comment.application.command.UpdateCommentCommand
 import com.planwith.planwith_fo_comment.application.port.in.CreateCommentUseCase;
 import com.planwith.planwith_fo_comment.application.port.in.DeleteCommentUseCase;
 import com.planwith.planwith_fo_comment.application.port.in.UpdateCommentUseCase;
+import com.planwith.planwith_fo_comment.application.query.CommentQueryResult;
+import com.planwith.planwith_fo_comment.application.service.CommentPermissionResolver;
 import com.planwith.planwith_fo_comment.domain.memberprojection.MemberRole;
 
 import io.swagger.v3.oas.annotations.Operation;
@@ -42,6 +44,7 @@ public class CommentCommandController {
 	private final CreateCommentUseCase createCommentUseCase;
 	private final UpdateCommentUseCase updateCommentUseCase;
 	private final DeleteCommentUseCase deleteCommentUseCase;
+	private final CommentPermissionResolver commentPermissionResolver;
 
 	// 댓글 작성
 	@PostMapping
@@ -51,14 +54,13 @@ public class CommentCommandController {
 			@Valid @RequestBody CreateCommentRequest request
 	) {
 		log.info("CommentCommandController : POST createComment : 댓글 작성 요청");
-		CommentResponse response = CommentResponse.from(
-				createCommentUseCase.create(new CreateCommentCommand(
-						request.storyUuid(),
-						memberUuid,
-						request.commentContent(),
-						request.parentCommentUuid()
-				))
-		);
+		CommentQueryResult result = createCommentUseCase.create(new CreateCommentCommand(
+				request.storyUuid(),
+				memberUuid,
+				request.commentContent(),
+				request.parentCommentUuid()
+		));
+		CommentResponse response = toResponse(result, memberUuid);
 		return ResponseEntity.status(HttpStatus.CREATED).body(response);
 	}
 
@@ -71,13 +73,12 @@ public class CommentCommandController {
 			@Valid @RequestBody UpdateCommentRequest request
 	) {
 		log.info("CommentCommandController : PATCH updateComment : 댓글 수정 요청");
-		CommentResponse response = CommentResponse.from(
-				updateCommentUseCase.update(new UpdateCommentCommand(
-						commentUuid,
-						memberUuid,
-						request.commentContent()
-				))
-		);
+		CommentQueryResult result = updateCommentUseCase.update(new UpdateCommentCommand(
+				commentUuid,
+				memberUuid,
+				request.commentContent()
+		));
+		CommentResponse response = toResponse(result, memberUuid);
 		return ResponseEntity.ok(response);
 	}
 
@@ -96,5 +97,12 @@ public class CommentCommandController {
 				MemberRole.from(memberRole)
 		));
 		return ResponseEntity.noContent().build();
+	}
+
+	private CommentResponse toResponse(CommentQueryResult result, UUID memberUuid) {
+		return CommentResponse.from(
+				result,
+				commentPermissionResolver.resolve(result, memberUuid, MemberRole.USER)
+		);
 	}
 }

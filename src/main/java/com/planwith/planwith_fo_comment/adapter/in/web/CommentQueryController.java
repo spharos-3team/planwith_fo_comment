@@ -19,10 +19,12 @@ import com.planwith.planwith_fo_comment.adapter.in.web.dto.ManagedCommentRespons
 import com.planwith.planwith_fo_comment.application.port.in.GetCommentUseCase;
 import com.planwith.planwith_fo_comment.application.port.in.GetCommentsByStoryUseCase;
 import com.planwith.planwith_fo_comment.application.port.in.GetManagedCommentsUseCase;
+import com.planwith.planwith_fo_comment.application.query.CommentQueryResult;
 import com.planwith.planwith_fo_comment.application.query.GetCommentQuery;
 import com.planwith.planwith_fo_comment.application.query.GetCommentsByStoryQuery;
 import com.planwith.planwith_fo_comment.application.query.GetManagedCommentsQuery;
 import com.planwith.planwith_fo_comment.application.query.ManagedCommentResult;
+import com.planwith.planwith_fo_comment.application.service.CommentPermissionResolver;
 import com.planwith.planwith_fo_comment.domain.comment.CommentSort;
 import com.planwith.planwith_fo_comment.domain.memberprojection.MemberRole;
 
@@ -42,6 +44,7 @@ public class CommentQueryController {
 	private final GetCommentUseCase getCommentUseCase;
 	private final GetCommentsByStoryUseCase getCommentsByStoryUseCase;
 	private final GetManagedCommentsUseCase getManagedCommentsUseCase;
+	private final CommentPermissionResolver commentPermissionResolver;
 
 	// Story별 댓글 목록 조회
 	@GetMapping("/stories/{storyUuid}/comments")
@@ -91,8 +94,16 @@ public class CommentQueryController {
 	// 댓글 상세 조회
 	@GetMapping("/comments/{commentUuid}")
 	@Operation(summary = "댓글 상세 조회")
-	public ResponseEntity<CommentResponse> getComment(@PathVariable UUID commentUuid) {
+	public ResponseEntity<CommentResponse> getComment(
+			@PathVariable UUID commentUuid,
+			@RequestHeader(value = "X-Member-Uuid", required = false) UUID memberUuid,
+			@RequestHeader(value = "X-Member-Role", required = false) String memberRole
+	) {
 		log.info("CommentQueryController : GET getComment : 댓글 상세 조회 요청");
-		return ResponseEntity.ok(CommentResponse.from(getCommentUseCase.get(new GetCommentQuery(commentUuid))));
+		CommentQueryResult result = getCommentUseCase.get(new GetCommentQuery(commentUuid));
+		return ResponseEntity.ok(CommentResponse.from(
+				result,
+				commentPermissionResolver.resolve(result, memberUuid, MemberRole.from(memberRole))
+		));
 	}
 }
