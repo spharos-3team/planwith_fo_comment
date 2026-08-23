@@ -12,10 +12,14 @@ import org.springframework.web.bind.annotation.RestControllerAdvice;
 import org.springframework.web.method.annotation.MethodArgumentTypeMismatchException;
 
 import com.planwith.planwith_fo_comment.domain.exception.CommentAlreadyDeletedException;
+import com.planwith.planwith_fo_comment.domain.exception.CommentNotAllowedException;
 import com.planwith.planwith_fo_comment.domain.exception.CommentNotFoundException;
 import com.planwith.planwith_fo_comment.domain.exception.CommentOwnerMismatchException;
 import com.planwith.planwith_fo_comment.domain.exception.InvalidCommentContentException;
 import com.planwith.planwith_fo_comment.domain.exception.InvalidReplyException;
+import com.planwith.planwith_fo_comment.domain.exception.LoginRequiredException;
+import com.planwith.planwith_fo_comment.domain.exception.StoryDeletedException;
+import com.planwith.planwith_fo_comment.domain.exception.StoryNotFoundException;
 import com.planwith.planwith_fo_comment.dto.ApiErrorResponse;
 
 import jakarta.validation.ConstraintViolationException;
@@ -26,6 +30,26 @@ public class GlobalExceptionHandler {
 	@ExceptionHandler(InvalidCredentialsException.class)
 	public ResponseEntity<ApiErrorResponse> handleInvalidCredentials(InvalidCredentialsException exception) {
 		return createErrorResponse(HttpStatus.UNAUTHORIZED, "INVALID_CREDENTIALS", exception.getMessage());
+	}
+
+	@ExceptionHandler(LoginRequiredException.class)
+	public ResponseEntity<ApiErrorResponse> handleLoginRequired(LoginRequiredException exception) {
+		return createErrorResponse(HttpStatus.UNAUTHORIZED, "LOGIN_REQUIRED", exception.getMessage());
+	}
+
+	@ExceptionHandler(StoryNotFoundException.class)
+	public ResponseEntity<ApiErrorResponse> handleStoryNotFound(StoryNotFoundException exception) {
+		return createErrorResponse(HttpStatus.NOT_FOUND, "STORY_NOT_FOUND", exception.getMessage());
+	}
+
+	@ExceptionHandler(StoryDeletedException.class)
+	public ResponseEntity<ApiErrorResponse> handleStoryDeleted(StoryDeletedException exception) {
+		return createErrorResponse(HttpStatus.CONFLICT, "STORY_DELETED", exception.getMessage());
+	}
+
+	@ExceptionHandler(CommentNotAllowedException.class)
+	public ResponseEntity<ApiErrorResponse> handleCommentNotAllowed(CommentNotAllowedException exception) {
+		return createErrorResponse(HttpStatus.FORBIDDEN, "COMMENT_NOT_ALLOWED", exception.getMessage());
 	}
 
 	@ExceptionHandler(CommentNotFoundException.class)

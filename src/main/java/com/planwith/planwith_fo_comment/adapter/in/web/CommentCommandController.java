@@ -46,7 +46,7 @@ public class CommentCommandController {
 	@PostMapping
 	@Operation(summary = "댓글 생성")
 	public ResponseEntity<CommentResponse> createComment(
-			@RequestHeader("X-Member-Uuid") UUID memberUuid,
+			@RequestHeader(value = "X-Member-Uuid", required = false) UUID memberUuid,
 			@Valid @RequestBody CreateCommentRequest request
 	) {
 		log.info("CommentCommandController : POST createComment : 댓글 생성 요청");
@@ -65,7 +65,7 @@ public class CommentCommandController {
 	@PatchMapping("/{commentUuid}")
 	@Operation(summary = "댓글 수정")
 	public ResponseEntity<CommentResponse> updateComment(
-			@RequestHeader("X-Member-Uuid") UUID memberUuid,
+			@RequestHeader(value = "X-Member-Uuid", required = false) UUID memberUuid,
 			@PathVariable UUID commentUuid,
 			@Valid @RequestBody UpdateCommentRequest request
 	) {
@@ -84,7 +84,7 @@ public class CommentCommandController {
 	@DeleteMapping("/{commentUuid}")
 	@Operation(summary = "댓글 삭제")
 	public ResponseEntity<Void> deleteComment(
-			@RequestHeader("X-Member-Uuid") UUID memberUuid,
+			@RequestHeader(value = "X-Member-Uuid", required = false) UUID memberUuid,
 			@PathVariable UUID commentUuid
 	) {
 		log.info("CommentCommandController : DELETE deleteComment : 댓글 삭제 요청");

@@ -34,9 +34,13 @@ import com.planwith.planwith_fo_comment.application.query.CommentQueryResult;
 import com.planwith.planwith_fo_comment.application.query.GetCommentQuery;
 import com.planwith.planwith_fo_comment.application.query.GetCommentsByStoryQuery;
 import com.planwith.planwith_fo_comment.domain.comment.CommentEventType;
+import com.planwith.planwith_fo_comment.domain.exception.CommentNotAllowedException;
 import com.planwith.planwith_fo_comment.domain.exception.CommentNotFoundException;
 import com.planwith.planwith_fo_comment.domain.exception.CommentOwnerMismatchException;
 import com.planwith.planwith_fo_comment.domain.exception.InvalidReplyException;
+import com.planwith.planwith_fo_comment.domain.exception.LoginRequiredException;
+import com.planwith.planwith_fo_comment.domain.exception.StoryDeletedException;
+import com.planwith.planwith_fo_comment.domain.exception.StoryNotFoundException;
 import com.planwith.planwith_fo_comment.domain.outbox.CommentOutboxEvent;
 
 @ActiveProfiles("test")
@@ -81,6 +85,7 @@ class CommentArchitectureIntegrationTests {
 	void createCommentSavesOutboxInSameTransaction() {
 		UUID storyUuid = UUID.randomUUID();
 		UUID memberUuid = UUID.randomUUID();
+		enableStory(storyUuid);
 
 		CommentQueryResult created = createCommentUseCase.create(
 				new CreateCommentCommand(storyUuid, memberUuid, "아키텍처 댓글")
@@ -103,6 +108,7 @@ class CommentArchitectureIntegrationTests {
 				"https://image.example/profile.png",
 				"ACTIVE"
 		));
+		enableStory(storyUuid);
 
 		CommentQueryResult created = createCommentUseCase.create(
 				new CreateCommentCommand(storyUuid, memberUuid, "조회용 댓글")
@@ -165,8 +171,10 @@ class CommentArchitectureIntegrationTests {
 				3L
 		));
 
+		UUID storyUuid = UUID.randomUUID();
+		enableStory(storyUuid);
 		CommentQueryResult created = createCommentUseCase.create(
-				new CreateCommentCommand(UUID.randomUUID(), memberUuid, "버전 검증")
+				new CreateCommentCommand(storyUuid, memberUuid, "버전 검증")
 		);
 		CommentQueryResult detail = getCommentUseCase.get(new GetCommentQuery(created.commentUuid()));
 		assertThat(detail.nickname()).isEqualTo("최신닉");
@@ -176,8 +184,10 @@ class CommentArchitectureIntegrationTests {
 	@Test
 	void updateAndDeleteFollowCommandRules() {
 		UUID memberUuid = UUID.randomUUID();
+		UUID storyUuid = UUID.randomUUID();
+		enableStory(storyUuid);
 		CommentQueryResult created = createCommentUseCase.create(
-				new CreateCommentCommand(UUID.randomUUID(), memberUuid, "원본")
+				new CreateCommentCommand(storyUuid, memberUuid, "원본")
 		);
 
 		assertThatThrownBy(() -> updateCommentUseCase.update(
@@ -198,6 +208,7 @@ class CommentArchitectureIntegrationTests {
 	void createOneLevelReplyAndRejectNestedReply() {
 		UUID storyUuid = UUID.randomUUID();
 		UUID memberUuid = UUID.randomUUID();
+		enableStory(storyUuid);
 
 		CommentQueryResult parent = createCommentUseCase.create(
 				new CreateCommentCommand(storyUuid, memberUuid, "부모 댓글")
@@ -217,8 +228,10 @@ class CommentArchitectureIntegrationTests {
 	@Test
 	void likeEventsUpdateLocalLikeProjection() {
 		UUID memberUuid = UUID.randomUUID();
+		UUID storyUuid = UUID.randomUUID();
+		enableStory(storyUuid);
 		CommentQueryResult created = createCommentUseCase.create(
-				new CreateCommentCommand(UUID.randomUUID(), memberUuid, "좋아요 대상")
+				new CreateCommentCommand(storyUuid, memberUuid, "좋아요 대상")
 		);
 		UUID likeUuid = UUID.randomUUID();
 
@@ -230,5 +243,46 @@ class CommentArchitectureIntegrationTests {
 		handleLikeRemovedUseCase.handleRemoved(new HandleLikeCommand(likeUuid, created.commentUuid(), memberUuid));
 		CommentQueryResult unliked = getCommentUseCase.get(new GetCommentQuery(created.commentUuid()));
 		assertThat(unliked.likeCount()).isZero();
+	}
+
+	@Test
+	void createCommentRequiresLoginAndWritableStory() {
+		UUID storyUuid = UUID.randomUUID();
+		UUID memberUuid = UUID.randomUUID();
+
+		assertThatThrownBy(() -> createCommentUseCase.create(
+				new CreateCommentCommand(storyUuid, null, "비회원")
+		)).isInstanceOf(LoginRequiredException.class);
+
+		assertThatThrownBy(() -> createCommentUseCase.create(
+				new CreateCommentCommand(storyUuid, memberUuid, "없는 스토리")
+		)).isInstanceOf(StoryNotFoundException.class);
+
+		enableStory(storyUuid);
+		syncStoryProjectionUseCase.sync(new SyncStoryProjectionCommand(
+				storyUuid,
+				UUID.randomUUID(),
+				false,
+				"ACTIVE",
+				2L
+		));
+		assertThatThrownBy(() -> createCommentUseCase.create(
+				new CreateCommentCommand(storyUuid, memberUuid, "댓글 비허용")
+		)).isInstanceOf(CommentNotAllowedException.class);
+
+		markStoryDeletedUseCase.markDeleted(new MarkStoryDeletedCommand(storyUuid, 3L));
+		assertThatThrownBy(() -> createCommentUseCase.create(
+				new CreateCommentCommand(storyUuid, memberUuid, "삭제된 스토리")
+		)).isInstanceOf(StoryDeletedException.class);
+	}
+
+	private void enableStory(UUID storyUuid) {
+		syncStoryProjectionUseCase.sync(new SyncStoryProjectionCommand(
+				storyUuid,
+				UUID.randomUUID(),
+				true,
+				"ACTIVE",
+				1L
+		));
 	}
 }

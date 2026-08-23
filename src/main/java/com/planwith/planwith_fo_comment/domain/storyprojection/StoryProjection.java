@@ -3,6 +3,9 @@ package com.planwith.planwith_fo_comment.domain.storyprojection;
 import java.time.Instant;
 import java.util.UUID;
 
+import com.planwith.planwith_fo_comment.domain.exception.CommentNotAllowedException;
+import com.planwith.planwith_fo_comment.domain.exception.StoryDeletedException;
+
 public class StoryProjection {
 
 	private final UUID storyUuid;
@@ -92,6 +95,15 @@ public class StoryProjection {
 
 	private boolean isStale(long incomingVersion) {
 		return incomingVersion > 0 && incomingVersion <= sourceVersion;
+	}
+
+	public void assertCommentWritable() {
+		if (storyStatus == StoryStatus.DELETED) {
+			throw new StoryDeletedException(storyUuid);
+		}
+		if (!commentEnabled) {
+			throw new CommentNotAllowedException(storyUuid);
+		}
 	}
 
 	private long resolveVersion(long incomingVersion) {
