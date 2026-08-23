@@ -1,10 +1,11 @@
 package com.planwith.planwith_fo_comment.application.service;
 
+import java.util.ArrayList;
 import java.util.Comparator;
+import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.UUID;
-import java.util.stream.Collectors;
 
 import org.springframework.stereotype.Component;
 
@@ -19,7 +20,6 @@ import com.planwith.planwith_fo_comment.domain.memberprojection.MemberRole;
 @Component
 public class CommentThreadAssembler {
 
-	@SuppressWarnings("null")
 	public List<CommentThreadResult> assemble(
 			List<CommentQueryResult> comments,
 			CommentSort sort,
@@ -37,10 +37,7 @@ public class CommentThreadAssembler {
 		CommentSort resolvedSort = sort == null ? CommentSort.LATEST : sort;
 		MemberRole resolvedRole = viewerRole == null ? MemberRole.USER : viewerRole;
 		Comparator<CommentQueryResult> rootComparator = rootComparator(resolvedSort);
-		Map<UUID, List<CommentQueryResult>> repliesByParent = comments.stream()
-				.filter(comment -> comment.parentCommentUuid() != null)
-				.filter(comment -> !comment.deleted())
-				.collect(Collectors.groupingBy(CommentQueryResult::parentCommentUuid));
+		Map<UUID, List<CommentQueryResult>> repliesByParent = groupVisibleRepliesByParent(comments);
 
 		return comments.stream()
 				.filter(comment -> comment.parentCommentUuid() == null)
@@ -52,6 +49,22 @@ public class CommentThreadAssembler {
 						resolvedRole
 				))
 				.toList();
+	}
+
+	private Map<UUID, List<CommentQueryResult>> groupVisibleRepliesByParent(List<CommentQueryResult> comments) {
+		Map<UUID, List<CommentQueryResult>> repliesByParent = new HashMap<>();
+		for (CommentQueryResult comment : comments) {
+			UUID parentCommentUuid = comment.parentCommentUuid();
+			if (parentCommentUuid != null && !comment.deleted()) {
+				List<CommentQueryResult> replies = repliesByParent.get(parentCommentUuid);
+				if (replies == null) {
+					replies = new ArrayList<>();
+					repliesByParent.put(parentCommentUuid, replies);
+				}
+				replies.add(comment);
+			}
+		}
+		return repliesByParent;
 	}
 
 	@SuppressWarnings("null")
