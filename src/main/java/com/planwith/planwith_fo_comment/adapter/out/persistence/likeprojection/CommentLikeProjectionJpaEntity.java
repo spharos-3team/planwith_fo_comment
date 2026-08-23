@@ -15,6 +15,10 @@ import lombok.Getter;
 import lombok.NoArgsConstructor;
 import lombok.Setter;
 
+/**
+ * Like 원장이 아니라 CommentLiked/Unliked 멱등 처리용 Inbox다.
+ * 누가 좋아요를 눌렀는지는 Like Service가 소유한다.
+ */
 @Getter
 @Setter
 @Builder

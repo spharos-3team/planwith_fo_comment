@@ -4,8 +4,8 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 import com.planwith.planwith_fo_comment.application.command.HandleLikeCommand;
-import com.planwith.planwith_fo_comment.application.port.in.HandleLikeCreatedUseCase;
-import com.planwith.planwith_fo_comment.application.port.in.HandleLikeRemovedUseCase;
+import com.planwith.planwith_fo_comment.application.port.in.HandleCommentLikedUseCase;
+import com.planwith.planwith_fo_comment.application.port.in.HandleCommentUnlikedUseCase;
 import com.planwith.planwith_fo_comment.application.port.out.CommentCommandPort;
 import com.planwith.planwith_fo_comment.application.port.out.CommentLikeProjectionPort;
 import com.planwith.planwith_fo_comment.domain.comment.StoryComment;
@@ -16,23 +16,23 @@ import lombok.extern.slf4j.Slf4j;
 @Slf4j
 @Service
 @RequiredArgsConstructor
-public class LikeEventCommandService implements HandleLikeCreatedUseCase, HandleLikeRemovedUseCase {
+public class LikeEventCommandService implements HandleCommentLikedUseCase, HandleCommentUnlikedUseCase {
 
 	private final CommentCommandPort commentCommandPort;
 	private final CommentLikeProjectionPort commentLikeProjectionPort;
 
 	@Override
 	@Transactional
-	public void handleCreated(HandleLikeCommand command) {
+	public void handleLiked(HandleLikeCommand command) {
 		log.info(
-				"LikeEventCommandService : handleCreated : LikeCreated 소비 시작 - likeUuid={}, commentUuid={}",
+				"LikeEventCommandService : handleLiked : CommentLiked 소비 시작 - likeUuid={}, commentUuid={}",
 				command.likeUuid(),
 				command.commentUuid()
 		);
 
 		if (commentLikeProjectionPort.existsByLikeUuid(command.likeUuid())) {
 			log.warn(
-					"LikeEventCommandService : handleCreated : 중복 LikeCreated 이벤트 무시 - likeUuid={}",
+					"LikeEventCommandService : handleLiked : 중복 CommentLiked 이벤트 무시 - likeUuid={}",
 					command.likeUuid()
 			);
 			return;
@@ -41,7 +41,7 @@ public class LikeEventCommandService implements HandleLikeCreatedUseCase, Handle
 		StoryComment comment = commentCommandPort.findByUuid(command.commentUuid()).orElse(null);
 		if (comment == null || !comment.isActive()) {
 			log.warn(
-					"LikeEventCommandService : handleCreated : 로컬 댓글이 없어 Like 반영을 건너뜀 - commentUuid={}",
+					"LikeEventCommandService : handleLiked : 로컬 댓글이 없어 like_count 반영을 건너뜀 - commentUuid={}",
 					command.commentUuid()
 			);
 			return;
@@ -52,7 +52,7 @@ public class LikeEventCommandService implements HandleLikeCreatedUseCase, Handle
 		commentLikeProjectionPort.save(command.likeUuid(), command.commentUuid(), command.memberUuid());
 
 		log.info(
-				"LikeEventCommandService : handleCreated : LikeCreated 반영 완료 - commentUuid={}, likeCount={}",
+				"LikeEventCommandService : handleLiked : comment_like_count 증가 완료 - commentUuid={}, likeCount={}",
 				comment.getCommentUuid(),
 				comment.getCommentLikeCount()
 		);
@@ -60,9 +60,9 @@ public class LikeEventCommandService implements HandleLikeCreatedUseCase, Handle
 
 	@Override
 	@Transactional
-	public void handleRemoved(HandleLikeCommand command) {
+	public void handleUnliked(HandleLikeCommand command) {
 		log.info(
-				"LikeEventCommandService : handleRemoved : LikeRemoved 소비 시작 - likeUuid={}, commentUuid={}",
+				"LikeEventCommandService : handleUnliked : CommentUnliked 소비 시작 - likeUuid={}, commentUuid={}",
 				command.likeUuid(),
 				command.commentUuid()
 		);
@@ -70,7 +70,7 @@ public class LikeEventCommandService implements HandleLikeCreatedUseCase, Handle
 		boolean removed = commentLikeProjectionPort.deleteByLikeUuid(command.likeUuid());
 		if (!removed) {
 			log.warn(
-					"LikeEventCommandService : handleRemoved : 로컬 Like Projection이 없어 무시 - likeUuid={}",
+					"LikeEventCommandService : handleUnliked : 처리된 Like가 없어 comment_like_count 감소를 건너뜀 - likeUuid={}",
 					command.likeUuid()
 			);
 			return;
@@ -79,7 +79,7 @@ public class LikeEventCommandService implements HandleLikeCreatedUseCase, Handle
 		StoryComment comment = commentCommandPort.findByUuid(command.commentUuid()).orElse(null);
 		if (comment == null || !comment.isActive()) {
 			log.warn(
-					"LikeEventCommandService : handleRemoved : 로컬 댓글이 없어 카운트 감소를 건너뜀 - commentUuid={}",
+					"LikeEventCommandService : handleUnliked : 로컬 댓글이 없어 comment_like_count 감소를 건너뜀 - commentUuid={}",
 					command.commentUuid()
 			);
 			return;
@@ -89,7 +89,7 @@ public class LikeEventCommandService implements HandleLikeCreatedUseCase, Handle
 		commentCommandPort.save(comment);
 
 		log.info(
-				"LikeEventCommandService : handleRemoved : LikeRemoved 반영 완료 - commentUuid={}, likeCount={}",
+				"LikeEventCommandService : handleUnliked : comment_like_count 감소 완료 - commentUuid={}, likeCount={}",
 				comment.getCommentUuid(),
 				comment.getCommentLikeCount()
 		);

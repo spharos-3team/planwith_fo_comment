@@ -2,7 +2,7 @@ package com.planwith.planwith_fo_comment.application.port.in;
 
 import com.planwith.planwith_fo_comment.application.command.HandleLikeCommand;
 
-public interface HandleLikeCreatedUseCase {
+public interface HandleCommentLikedUseCase {
 
-	void handleCreated(HandleLikeCommand command);
+	void handleLiked(HandleLikeCommand command);
 }
