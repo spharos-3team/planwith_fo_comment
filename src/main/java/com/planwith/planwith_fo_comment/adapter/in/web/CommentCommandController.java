@@ -1,8 +1,8 @@
 package com.planwith.planwith_fo_comment.adapter.in.web;
 
+import java.net.URI;
 import java.util.UUID;
 
-import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.validation.annotation.Validated;
 import org.springframework.web.bind.annotation.DeleteMapping;
@@ -13,6 +13,7 @@ import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestHeader;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RestController;
+import org.springframework.web.servlet.support.ServletUriComponentsBuilder;
 
 import com.planwith.planwith_fo_comment.adapter.in.web.dto.CommentResponse;
 import com.planwith.planwith_fo_comment.adapter.in.web.dto.CreateCommentRequest;
@@ -61,7 +62,11 @@ public class CommentCommandController {
 				request.parentCommentUuid()
 		));
 		CommentResponse response = toResponse(result, memberUuid);
-		return ResponseEntity.status(HttpStatus.CREATED).body(response);
+		URI location = ServletUriComponentsBuilder.fromCurrentRequest()
+				.path("/{commentUuid}")
+				.buildAndExpand(result.commentUuid())
+				.toUri();
+		return ResponseEntity.created(location).body(response);
 	}
 
 	// 댓글 수정
