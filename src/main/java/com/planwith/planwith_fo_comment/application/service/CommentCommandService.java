@@ -33,6 +33,7 @@ public class CommentCommandService implements CreateCommentUseCase, UpdateCommen
 	private final CommentOutboxPort commentOutboxPort;
 	private final MemberProjectionPort memberProjectionPort;
 	private final StoryProjectionPort storyProjectionPort;
+	private final CommentWriteValidator commentWriteValidator;
 
 	@Override
 	@Transactional
@@ -44,6 +45,7 @@ public class CommentCommandService implements CreateCommentUseCase, UpdateCommen
 				command.memberUuid(),
 				command.parentCommentUuid()
 		);
+		commentWriteValidator.assertCanCreate(command.memberUuid(), command.storyUuid());
 
 		StoryComment comment = createComment(command);
 		commentCommandPort.save(comment);
@@ -62,6 +64,7 @@ public class CommentCommandService implements CreateCommentUseCase, UpdateCommen
 	@Transactional
 	public CommentQueryResult update(UpdateCommentCommand command) {
 		log.info("CommentCommandService : update : 댓글 수정 비즈니스 로직 시작");
+		commentWriteValidator.assertCanMutate(command.memberUuid());
 
 		StoryComment comment = findActiveComment(command.commentUuid());
 		comment.updateContent(command.memberUuid(), command.content());
@@ -79,6 +82,7 @@ public class CommentCommandService implements CreateCommentUseCase, UpdateCommen
 	@Transactional
 	public void delete(DeleteCommentCommand command) {
 		log.info("CommentCommandService : delete : 댓글 삭제 비즈니스 로직 시작");
+		commentWriteValidator.assertCanMutate(command.memberUuid());
 
 		StoryComment comment = findActiveComment(command.commentUuid());
 		comment.delete(command.memberUuid());

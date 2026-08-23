@@ -1,10 +1,15 @@
 package com.planwith.planwith_fo_comment.domain.storyprojection;
 
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.assertj.core.api.Assertions.assertThatCode;
+import static org.assertj.core.api.Assertions.assertThatThrownBy;
 
 import java.util.UUID;
 
 import org.junit.jupiter.api.Test;
+
+import com.planwith.planwith_fo_comment.domain.exception.CommentNotAllowedException;
+import com.planwith.planwith_fo_comment.domain.exception.StoryDeletedException;
 
 class StoryProjectionTest {
 
@@ -35,5 +40,29 @@ class StoryProjectionTest {
 		assertThat(projection.getStoryStatus()).isEqualTo(StoryStatus.DELETED);
 		assertThat(projection.isCommentEnabled()).isFalse();
 		assertThat(projection.markDeleted(1L)).isFalse();
+	}
+
+	@Test
+	void assertCommentWritableRejectsDeletedOrDisabledStory() {
+		StoryProjection writable = StoryProjection.create(
+				UUID.randomUUID(),
+				UUID.randomUUID(),
+				true,
+				StoryStatus.ACTIVE
+		);
+		assertThatCode(writable::assertCommentWritable).doesNotThrowAnyException();
+
+		StoryProjection disabled = StoryProjection.create(
+				UUID.randomUUID(),
+				UUID.randomUUID(),
+				false,
+				StoryStatus.ACTIVE
+		);
+		assertThatThrownBy(disabled::assertCommentWritable)
+				.isInstanceOf(CommentNotAllowedException.class);
+
+		writable.markDeleted(1L);
+		assertThatThrownBy(writable::assertCommentWritable)
+				.isInstanceOf(StoryDeletedException.class);
 	}
 }

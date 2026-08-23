@@ -21,6 +21,8 @@ import org.springframework.transaction.annotation.Transactional;
 
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
+import com.planwith.planwith_fo_comment.application.command.SyncStoryProjectionCommand;
+import com.planwith.planwith_fo_comment.application.port.in.SyncStoryProjectionUseCase;
 
 @ActiveProfiles("test")
 @SpringBootTest
@@ -34,10 +36,14 @@ class CommentWebAdapterIntegrationTests {
 	@Autowired
 	private ObjectMapper objectMapper;
 
+	@Autowired
+	private SyncStoryProjectionUseCase syncStoryProjectionUseCase;
+
 	@Test
 	void createListDetailUpdateAndDeleteThroughWebAdapter() throws Exception {
 		UUID storyUuid = UUID.randomUUID();
 		UUID memberUuid = UUID.randomUUID();
+		enableStory(storyUuid);
 
 		MvcResult created = mockMvc.perform(post("/api/planwith-fo-comment/comments")
 						.header("X-Member-Uuid", memberUuid)
@@ -90,6 +96,7 @@ class CommentWebAdapterIntegrationTests {
 	void createReplyThroughWebAdapter() throws Exception {
 		UUID storyUuid = UUID.randomUUID();
 		UUID memberUuid = UUID.randomUUID();
+		enableStory(storyUuid);
 
 		MvcResult parent = mockMvc.perform(post("/api/planwith-fo-comment/comments")
 						.header("X-Member-Uuid", memberUuid)
@@ -132,7 +139,84 @@ class CommentWebAdapterIntegrationTests {
 								  "content": "헤더 없음"
 								}
 								"""))
+				.andExpect(status().isUnauthorized())
+				.andExpect(jsonPath("$.code").value("LOGIN_REQUIRED"))
+				.andExpect(jsonPath("$.message").value("로그인 후 댓글을 작성할 수 있습니다."));
+	}
+
+	@Test
+	void guestCanQueryCommentsWithoutLogin() throws Exception {
+		UUID storyUuid = UUID.randomUUID();
+
+		mockMvc.perform(get("/api/planwith-fo-comment/comments")
+						.param("storyUuid", storyUuid.toString()))
+				.andExpect(status().isOk())
+				.andExpect(jsonPath("$").isArray());
+	}
+
+	@Test
+	void createCommentFailsWhenStoryIsMissingOrDisabled() throws Exception {
+		UUID memberUuid = UUID.randomUUID();
+		UUID missingStoryUuid = UUID.randomUUID();
+
+		mockMvc.perform(post("/api/planwith-fo-comment/comments")
+						.header("X-Member-Uuid", memberUuid)
+						.contentType(MediaType.APPLICATION_JSON)
+						.content("""
+								{
+								  "storyUuid": "%s",
+								  "content": "없는 스토리"
+								}
+								""".formatted(missingStoryUuid)))
+				.andExpect(status().isNotFound())
+				.andExpect(jsonPath("$.code").value("STORY_NOT_FOUND"));
+
+		UUID disabledStoryUuid = UUID.randomUUID();
+		syncStoryProjectionUseCase.sync(new SyncStoryProjectionCommand(
+				disabledStoryUuid,
+				UUID.randomUUID(),
+				false,
+				"ACTIVE",
+				1L
+		));
+		mockMvc.perform(post("/api/planwith-fo-comment/comments")
+						.header("X-Member-Uuid", memberUuid)
+						.contentType(MediaType.APPLICATION_JSON)
+						.content("""
+								{
+								  "storyUuid": "%s",
+								  "content": "댓글 비허용"
+								}
+								""".formatted(disabledStoryUuid)))
+				.andExpect(status().isForbidden())
+				.andExpect(jsonPath("$.code").value("COMMENT_NOT_ALLOWED"));
+	}
+
+	@Test
+	void createCommentFailsWhenContentIsBlank() throws Exception {
+		UUID storyUuid = UUID.randomUUID();
+		enableStory(storyUuid);
+
+		mockMvc.perform(post("/api/planwith-fo-comment/comments")
+						.header("X-Member-Uuid", UUID.randomUUID())
+						.contentType(MediaType.APPLICATION_JSON)
+						.content("""
+								{
+								  "storyUuid": "%s",
+								  "content": " "
+								}
+								""".formatted(storyUuid)))
 				.andExpect(status().isBadRequest())
 				.andExpect(jsonPath("$.code").value("INVALID_REQUEST"));
+	}
+
+	private void enableStory(UUID storyUuid) {
+		syncStoryProjectionUseCase.sync(new SyncStoryProjectionCommand(
+				storyUuid,
+				UUID.randomUUID(),
+				true,
+				"ACTIVE",
+				1L
+		));
 	}
 }
