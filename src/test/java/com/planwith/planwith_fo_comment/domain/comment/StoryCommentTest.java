@@ -135,6 +135,23 @@ class StoryCommentTest {
 	}
 
 	@Test
+	void automaticallyHidesCommentWhenReportCountReachesThreshold() {
+		StoryComment comment = StoryComment.createRoot(UUID.randomUUID(), UUID.randomUUID(), "report target");
+
+		comment.increaseReportCount();
+		comment.increaseReportCount();
+
+		assertThat(comment.getModerationStatus()).isEqualTo(ModerationStatus.VISIBLE);
+		assertThat(comment.getHiddenAt()).isNull();
+
+		comment.increaseReportCount();
+
+		assertThat(comment.getReportCount()).isEqualTo(StoryComment.AUTO_HIDE_REPORT_THRESHOLD);
+		assertThat(comment.getModerationStatus()).isEqualTo(ModerationStatus.HIDDEN);
+		assertThat(comment.getHiddenAt()).isNotNull();
+	}
+
+	@Test
 	void rejectBlankOrTooLongContent() {
 		UUID storyUuid = UUID.randomUUID();
 		UUID memberUuid = UUID.randomUUID();

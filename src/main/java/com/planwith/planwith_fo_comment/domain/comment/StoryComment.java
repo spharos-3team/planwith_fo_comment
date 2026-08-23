@@ -11,6 +11,7 @@ import com.planwith.planwith_fo_comment.domain.exception.InvalidReplyException;
 public class StoryComment {
 
 	public static final int MAX_CONTENT_LENGTH = 1000;
+	public static final int AUTO_HIDE_REPORT_THRESHOLD = 3;
 	public static final String DELETED_DISPLAY_CONTENT = "삭제된 댓글입니다.";
 
 	private Long commentId;
@@ -172,6 +173,9 @@ public class StoryComment {
 	public void increaseReportCount() {
 		assertNotDeleted();
 		this.reportCount += 1;
+		if (this.reportCount >= AUTO_HIDE_REPORT_THRESHOLD) {
+			hide();
+		}
 	}
 
 	public void assertCanReceiveReply() {
