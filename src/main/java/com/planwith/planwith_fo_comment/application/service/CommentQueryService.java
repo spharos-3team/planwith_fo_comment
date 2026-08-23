@@ -7,11 +7,14 @@ import org.springframework.transaction.annotation.Transactional;
 
 import com.planwith.planwith_fo_comment.application.port.in.GetCommentUseCase;
 import com.planwith.planwith_fo_comment.application.port.in.GetCommentsByStoryUseCase;
+import com.planwith.planwith_fo_comment.application.port.in.GetManagedCommentsUseCase;
 import com.planwith.planwith_fo_comment.application.port.out.CommentQueryPort;
 import com.planwith.planwith_fo_comment.application.query.CommentQueryResult;
 import com.planwith.planwith_fo_comment.application.query.CommentThreadResult;
 import com.planwith.planwith_fo_comment.application.query.GetCommentQuery;
 import com.planwith.planwith_fo_comment.application.query.GetCommentsByStoryQuery;
+import com.planwith.planwith_fo_comment.application.query.GetManagedCommentsQuery;
+import com.planwith.planwith_fo_comment.application.query.ManagedCommentResult;
 import com.planwith.planwith_fo_comment.domain.exception.CommentNotFoundException;
 
 import lombok.RequiredArgsConstructor;
@@ -21,10 +24,11 @@ import lombok.extern.slf4j.Slf4j;
 @Service
 @RequiredArgsConstructor
 @Transactional(readOnly = true)
-public class CommentQueryService implements GetCommentUseCase, GetCommentsByStoryUseCase {
+public class CommentQueryService implements GetCommentUseCase, GetCommentsByStoryUseCase, GetManagedCommentsUseCase {
 
 	private final CommentQueryPort commentQueryPort;
 	private final CommentThreadAssembler commentThreadAssembler;
+	private final CommentManagementAuthorizer commentManagementAuthorizer;
 
 	@Override
 	public CommentQueryResult get(GetCommentQuery query) {
@@ -56,5 +60,15 @@ public class CommentQueryService implements GetCommentUseCase, GetCommentsByStor
 				threads.size()
 		);
 		return threads;
+	}
+
+	@Override
+	public List<ManagedCommentResult> getManagedComments(GetManagedCommentsQuery query) {
+		commentManagementAuthorizer.assertCanManage(
+				query.storyUuid(),
+				query.requesterUuid(),
+				query.requesterRole()
+		);
+		return commentQueryPort.findHiddenByStoryUuid(query.storyUuid());
 	}
 }

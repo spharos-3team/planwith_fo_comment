@@ -43,6 +43,11 @@ public interface StoryCommentJpaRepository extends JpaRepository<StoryCommentJpa
 			ModerationStatus moderationStatus
 	);
 
+	List<StoryCommentJpaEntity> findByStoryUuidAndModerationStatusAndDeletedAtIsNullOrderByReportCountDescCreatedAtDesc(
+			UUID storyUuid,
+			ModerationStatus moderationStatus
+	);
+
 	List<StoryCommentJpaEntity> findByStoryUuidAndParentCommentUuidAndDeletedAtIsNullOrderByCreatedAtAsc(
 			UUID storyUuid,
 			UUID parentCommentUuid

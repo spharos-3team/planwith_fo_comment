@@ -22,9 +22,11 @@ import org.springframework.transaction.annotation.Transactional;
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.planwith.planwith_fo_comment.application.command.HandleLikeCommand;
+import com.planwith.planwith_fo_comment.application.command.HandleReportCommand;
 import com.planwith.planwith_fo_comment.application.command.SyncMemberProjectionCommand;
 import com.planwith.planwith_fo_comment.application.command.SyncStoryProjectionCommand;
 import com.planwith.planwith_fo_comment.application.port.in.HandleCommentLikedUseCase;
+import com.planwith.planwith_fo_comment.application.port.in.HandleCommentReportedUseCase;
 import com.planwith.planwith_fo_comment.application.port.in.SyncMemberProjectionUseCase;
 import com.planwith.planwith_fo_comment.application.port.in.SyncStoryProjectionUseCase;
 
@@ -48,6 +50,9 @@ class CommentWebAdapterIntegrationTests {
 
 	@Autowired
 	private HandleCommentLikedUseCase handleCommentLikedUseCase;
+
+	@Autowired
+	private HandleCommentReportedUseCase handleCommentReportedUseCase;
 
 	@Test
 	void createListDetailUpdateAndDeleteThroughWebAdapter() throws Exception {
@@ -562,6 +567,72 @@ class CommentWebAdapterIntegrationTests {
 	}
 
 	@Test
+	void managementEndpointAllowsStoryOwnerAndAdminAndDeletesHiddenComments() throws Exception {
+		UUID storyUuid = UUID.randomUUID();
+		UUID storyOwnerUuid = UUID.randomUUID();
+		UUID authorUuid = UUID.randomUUID();
+		UUID otherMemberUuid = UUID.randomUUID();
+		syncStoryProjectionUseCase.sync(new SyncStoryProjectionCommand(
+				storyUuid,
+				storyOwnerUuid,
+				true,
+				"ACTIVE",
+				1L
+		));
+		syncMemberProjectionUseCase.sync(new SyncMemberProjectionCommand(
+				authorUuid,
+				"reported-user",
+				"https://image.example/reported-user.png",
+				"ACTIVE"
+		));
+
+		String higherReportCommentUuid = createComment(storyUuid, authorUuid, "higher report count");
+		String lowerReportCommentUuid = createComment(storyUuid, authorUuid, "lower report count");
+		createComment(storyUuid, authorUuid, "visible comment");
+		report(UUID.fromString(higherReportCommentUuid), authorUuid, 4);
+		report(UUID.fromString(lowerReportCommentUuid), authorUuid, 3);
+
+		mockMvc.perform(get("/api/planwith-fo-comment/stories/{storyUuid}/comments/management", storyUuid))
+				.andExpect(status().isUnauthorized())
+				.andExpect(jsonPath("$.code").value("LOGIN_REQUIRED"));
+
+		mockMvc.perform(get("/api/planwith-fo-comment/stories/{storyUuid}/comments/management", storyUuid)
+						.header("X-Member-Uuid", otherMemberUuid))
+				.andExpect(status().isForbidden())
+				.andExpect(jsonPath("$.code").value("COMMENT_MANAGEMENT_FORBIDDEN"));
+
+		mockMvc.perform(get("/api/planwith-fo-comment/stories/{storyUuid}/comments/management", storyUuid)
+						.header("X-Member-Uuid", storyOwnerUuid))
+				.andExpect(status().isOk())
+				.andExpect(jsonPath("$.length()").value(2))
+				.andExpect(jsonPath("$[0].commentUuid").value(higherReportCommentUuid))
+				.andExpect(jsonPath("$[0].profileImage").value("https://image.example/reported-user.png"))
+				.andExpect(jsonPath("$[0].nickname").value("reported-user"))
+				.andExpect(jsonPath("$[0].commentContent").value("higher report count"))
+				.andExpect(jsonPath("$[0].reportCount").value(4))
+				.andExpect(jsonPath("$[0].createdAt").exists())
+				.andExpect(jsonPath("$[0].hiddenAt").exists())
+				.andExpect(jsonPath("$[1].commentUuid").value(lowerReportCommentUuid))
+				.andExpect(jsonPath("$[1].reportCount").value(3));
+
+		mockMvc.perform(get("/api/planwith-fo-comment/stories/{storyUuid}/comments/management", storyUuid)
+						.header("X-Member-Uuid", UUID.randomUUID())
+						.header("X-Member-Role", "ADMIN"))
+				.andExpect(status().isOk())
+				.andExpect(jsonPath("$.length()").value(2));
+
+		mockMvc.perform(delete("/api/planwith-fo-comment/comments/{commentUuid}", higherReportCommentUuid)
+						.header("X-Member-Uuid", storyOwnerUuid))
+				.andExpect(status().isNoContent());
+
+		mockMvc.perform(get("/api/planwith-fo-comment/stories/{storyUuid}/comments/management", storyUuid)
+						.header("X-Member-Uuid", storyOwnerUuid))
+				.andExpect(status().isOk())
+				.andExpect(jsonPath("$.length()").value(1))
+				.andExpect(jsonPath("$[0].commentUuid").value(lowerReportCommentUuid));
+	}
+
+	@Test
 	void createCommentFailsWhenContentIsBlank() throws Exception {
 		UUID storyUuid = UUID.randomUUID();
 		enableStory(storyUuid);
@@ -587,5 +658,28 @@ class CommentWebAdapterIntegrationTests {
 				"ACTIVE",
 				1L
 		));
+	}
+
+	private String createComment(UUID storyUuid, UUID memberUuid, String content) throws Exception {
+		MvcResult result = mockMvc.perform(post("/api/planwith-fo-comment/comments")
+						.header("X-Member-Uuid", memberUuid)
+						.contentType(MediaType.APPLICATION_JSON)
+						.content("""
+								{
+								  "storyUuid": "%s",
+								  "commentContent": "%s"
+								}
+								""".formatted(storyUuid, content)))
+				.andExpect(status().isCreated())
+				.andReturn();
+		return objectMapper.readTree(result.getResponse().getContentAsString()).get("commentUuid").asText();
+	}
+
+	private void report(UUID commentUuid, UUID memberUuid, int count) {
+		for (int index = 0; index < count; index++) {
+			handleCommentReportedUseCase.handleReported(
+					new HandleReportCommand(UUID.randomUUID(), commentUuid, memberUuid)
+			);
+		}
 	}
 }
