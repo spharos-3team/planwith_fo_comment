@@ -18,12 +18,17 @@ import lombok.extern.slf4j.Slf4j;
 @Service
 @RequiredArgsConstructor
 public class StoryProjectionCommandService implements SyncStoryProjectionUseCase, MarkStoryDeletedUseCase {
+	private static final String STORY_TARGET_TYPE = "STORY";
 
 	private final StoryProjectionPort storyProjectionPort;
+	private final ProcessedCommentEventService processedCommentEventService;
 
 	@Override
 	@Transactional
 	public void sync(SyncStoryProjectionCommand command) {
+		if (processedCommentEventService.isDuplicate(command.eventMetadata())) {
+			return;
+		}
 		log.info(
 				"StoryProjectionCommandService : sync : Story Projection 동기화 시작 - storyUuid={}, sourceVersion={}",
 				command.storyUuid(),
@@ -31,7 +36,7 @@ public class StoryProjectionCommandService implements SyncStoryProjectionUseCase
 		);
 
 		StoryStatus storyStatus = StoryStatus.from(command.storyStatus());
-		StoryProjection projection = storyProjectionPort.findByStoryUuid(command.storyUuid())
+		StoryProjection projection = storyProjectionPort.findByStoryUuidForUpdate(command.storyUuid())
 				.orElseGet(() -> StoryProjection.create(
 						command.storyUuid(),
 						command.ownerMemberUuid(),
@@ -45,6 +50,7 @@ public class StoryProjectionCommandService implements SyncStoryProjectionUseCase
 				command.incomingVersion()
 		);
 		if (!applied) {
+			processedCommentEventService.record(STORY_TARGET_TYPE, command.eventMetadata());
 			log.warn(
 					"StoryProjectionCommandService : sync : 이전 버전 Story 이벤트 무시 - storyUuid={}, incomingVersion={}, currentVersion={}",
 					command.storyUuid(),
@@ -54,6 +60,7 @@ public class StoryProjectionCommandService implements SyncStoryProjectionUseCase
 			return;
 		}
 		storyProjectionPort.save(projection);
+		processedCommentEventService.record(STORY_TARGET_TYPE, command.eventMetadata());
 
 		log.info(
 				"StoryProjectionCommandService : sync : Story Projection 동기화 완료 - storyUuid={}, ownerMemberUuid={}",
@@ -65,12 +72,15 @@ public class StoryProjectionCommandService implements SyncStoryProjectionUseCase
 	@Override
 	@Transactional
 	public void markDeleted(MarkStoryDeletedCommand command) {
+		if (processedCommentEventService.isDuplicate(command.eventMetadata())) {
+			return;
+		}
 		log.info(
 				"StoryProjectionCommandService : markDeleted : StoryDeleted 반영 시작 - storyUuid={}",
 				command.storyUuid()
 		);
 
-		StoryProjection projection = storyProjectionPort.findByStoryUuid(command.storyUuid())
+		StoryProjection projection = storyProjectionPort.findByStoryUuidForUpdate(command.storyUuid())
 				.orElseGet(() -> StoryProjection.create(
 						command.storyUuid(),
 						null,
@@ -79,6 +89,7 @@ public class StoryProjectionCommandService implements SyncStoryProjectionUseCase
 				));
 		boolean applied = projection.markDeleted(command.incomingVersion());
 		if (!applied) {
+			processedCommentEventService.record(STORY_TARGET_TYPE, command.eventMetadata());
 			log.warn(
 					"StoryProjectionCommandService : markDeleted : 이전 버전 StoryDeleted 무시 - storyUuid={}",
 					command.storyUuid()
@@ -86,6 +97,7 @@ public class StoryProjectionCommandService implements SyncStoryProjectionUseCase
 			return;
 		}
 		storyProjectionPort.save(projection);
+		processedCommentEventService.record(STORY_TARGET_TYPE, command.eventMetadata());
 
 		log.info(
 				"StoryProjectionCommandService : markDeleted : StoryDeleted 반영 완료 - storyUuid={}",

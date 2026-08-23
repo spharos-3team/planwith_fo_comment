@@ -48,6 +48,12 @@ public class CommentPersistenceAdapter implements CommentCommandPort, CommentQue
 	}
 
 	@Override
+	public Optional<StoryComment> findByUuidForUpdate(UUID commentUuid) {
+		return storyCommentJpaRepository.findByCommentUuidForUpdate(commentUuid)
+				.map(StoryCommentPersistenceMapper::toDomain);
+	}
+
+	@Override
 	public Optional<CommentQueryResult> findActiveByUuid(UUID commentUuid) {
 		return storyCommentJpaRepository.findByCommentUuid(commentUuid)
 				.filter(entity -> entity.getDeletedAt() == null)

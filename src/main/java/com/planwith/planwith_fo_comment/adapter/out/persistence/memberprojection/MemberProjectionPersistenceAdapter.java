@@ -40,4 +40,17 @@ public class MemberProjectionPersistenceAdapter implements MemberProjectionPort 
 						entity.getSynchronizedAt()
 				));
 	}
+
+	@Override
+	public Optional<MemberProjection> findByMemberUuidForUpdate(UUID memberUuid) {
+		return memberProjectionJpaRepository.findByMemberUuidForUpdate(memberUuid)
+				.map(entity -> MemberProjection.restore(
+						entity.getMemberUuid(),
+						entity.getNickname(),
+						entity.getProfileImage(),
+						entity.getMemberStatus(),
+						entity.getSourceVersion(),
+						entity.getSynchronizedAt()
+				));
+	}
 }

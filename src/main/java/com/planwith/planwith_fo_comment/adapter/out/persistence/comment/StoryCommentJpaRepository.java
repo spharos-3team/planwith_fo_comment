@@ -5,14 +5,21 @@ import java.util.Optional;
 import java.util.UUID;
 
 import org.springframework.data.jpa.repository.JpaRepository;
+import org.springframework.data.jpa.repository.Lock;
 import org.springframework.data.jpa.repository.Query;
 import org.springframework.data.repository.query.Param;
 
 import com.planwith.planwith_fo_comment.domain.comment.ModerationStatus;
 
+import jakarta.persistence.LockModeType;
+
 public interface StoryCommentJpaRepository extends JpaRepository<StoryCommentJpaEntity, Long> {
 
 	Optional<StoryCommentJpaEntity> findByCommentUuid(UUID commentUuid);
+
+	@Lock(LockModeType.PESSIMISTIC_WRITE)
+	@Query("select c from StoryCommentJpaEntity c where c.commentUuid = :commentUuid")
+	Optional<StoryCommentJpaEntity> findByCommentUuidForUpdate(@Param("commentUuid") UUID commentUuid);
 
 	@Query("""
 			select c from StoryCommentJpaEntity c

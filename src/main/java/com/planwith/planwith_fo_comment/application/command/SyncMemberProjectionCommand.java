@@ -7,7 +7,8 @@ public record SyncMemberProjectionCommand(
 		String nickname,
 		String profileImage,
 		String memberStatus,
-		Long sourceVersion
+		Long sourceVersion,
+		EventMetadata eventMetadata
 ) {
 
 	public SyncMemberProjectionCommand(
@@ -16,7 +17,17 @@ public record SyncMemberProjectionCommand(
 			String profileImage,
 			String memberStatus
 	) {
-		this(memberUuid, nickname, profileImage, memberStatus, null);
+		this(memberUuid, nickname, profileImage, memberStatus, null, null);
+	}
+
+	public SyncMemberProjectionCommand(
+			UUID memberUuid,
+			String nickname,
+			String profileImage,
+			String memberStatus,
+			Long sourceVersion
+	) {
+		this(memberUuid, nickname, profileImage, memberStatus, sourceVersion, null);
 	}
 
 	public long incomingVersion() {

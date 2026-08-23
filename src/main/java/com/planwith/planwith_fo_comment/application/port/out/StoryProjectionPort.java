@@ -13,5 +13,7 @@ public interface StoryProjectionPort {
 
 	Optional<StoryProjection> findByStoryUuid(UUID storyUuid);
 
+	Optional<StoryProjection> findByStoryUuidForUpdate(UUID storyUuid);
+
 	List<StoryProjection> findByStoryUuids(Collection<UUID> storyUuids);
 }

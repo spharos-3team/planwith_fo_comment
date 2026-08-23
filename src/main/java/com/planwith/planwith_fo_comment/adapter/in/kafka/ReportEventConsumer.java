@@ -7,6 +7,7 @@ import org.springframework.stereotype.Component;
 import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.planwith.planwith_fo_comment.adapter.in.kafka.event.CommentReportedEvent;
+import com.planwith.planwith_fo_comment.application.command.EventMetadata;
 import com.planwith.planwith_fo_comment.application.command.HandleReportCommand;
 import com.planwith.planwith_fo_comment.application.port.in.HandleCommentReportedUseCase;
 
@@ -27,7 +28,18 @@ public class ReportEventConsumer {
 		log.info("ReportEventConsumer : consumeCommentReported : CommentReportedEvent 수신");
 		CommentReportedEvent event = read(message);
 		handleCommentReportedUseCase.handleReported(
-				new HandleReportCommand(event.reportUuid(), event.commentUuid(), event.memberUuid())
+				new HandleReportCommand(
+						event.reportUuid(),
+						event.commentUuid(),
+						event.memberUuid(),
+						EventMetadata.validated(
+								event.eventUuid(),
+								event.eventType(),
+								event.targetUuid(),
+								event.occurredAt(),
+								event.reportUuid()
+						)
+				)
 		);
 	}
 

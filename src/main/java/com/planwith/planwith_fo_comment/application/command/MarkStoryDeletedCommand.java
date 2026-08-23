@@ -4,8 +4,13 @@ import java.util.UUID;
 
 public record MarkStoryDeletedCommand(
 		UUID storyUuid,
-		Long sourceVersion
+		Long sourceVersion,
+		EventMetadata eventMetadata
 ) {
+
+	public MarkStoryDeletedCommand(UUID storyUuid, Long sourceVersion) {
+		this(storyUuid, sourceVersion, null);
+	}
 
 	public long incomingVersion() {
 		return sourceVersion == null ? 0L : sourceVersion;
