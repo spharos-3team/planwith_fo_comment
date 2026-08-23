@@ -10,15 +10,20 @@ import java.util.UUID;
 import org.springframework.stereotype.Component;
 
 import com.planwith.planwith_fo_comment.application.query.CommentMemberResult;
+import com.planwith.planwith_fo_comment.application.query.CommentPermissionResult;
 import com.planwith.planwith_fo_comment.application.query.CommentQueryResult;
 import com.planwith.planwith_fo_comment.application.query.CommentThreadResult;
-import com.planwith.planwith_fo_comment.domain.comment.CommentDeletePolicy;
 import com.planwith.planwith_fo_comment.domain.comment.CommentSort;
 import com.planwith.planwith_fo_comment.domain.comment.StoryComment;
 import com.planwith.planwith_fo_comment.domain.memberprojection.MemberRole;
 
+import lombok.RequiredArgsConstructor;
+
 @Component
+@RequiredArgsConstructor
 public class CommentThreadAssembler {
+
+	private final CommentPermissionResolver commentPermissionResolver;
 
 	public List<CommentThreadResult> assemble(
 			List<CommentQueryResult> comments,
@@ -79,12 +84,8 @@ public class CommentThreadAssembler {
 				.map(reply -> toThread(reply, List.of(), viewerMemberUuid, viewerRole))
 				.toList();
 		boolean deleted = comment.deleted();
-		boolean canEdit = !deleted
-				&& viewerMemberUuid != null
-				&& viewerMemberUuid.equals(comment.memberUuid());
-		boolean canDelete = !deleted && CommentDeletePolicy.canDelete(
-				comment.memberUuid(),
-				comment.storyOwnerMemberUuid(),
+		CommentPermissionResult permission = commentPermissionResolver.resolve(
+				comment,
 				viewerMemberUuid,
 				viewerRole
 		);
@@ -101,8 +102,8 @@ public class CommentThreadAssembler {
 				comment.createdAt(),
 				comment.updatedAt(),
 				!deleted && isUpdated(comment),
-				canEdit,
-				canDelete,
+				permission.canEdit(),
+				permission.canDelete(),
 				deleted,
 				nestedReplies
 		);

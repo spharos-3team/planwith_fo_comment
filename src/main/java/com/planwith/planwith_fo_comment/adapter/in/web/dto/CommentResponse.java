@@ -4,6 +4,7 @@ import java.time.Instant;
 import java.util.UUID;
 
 import com.fasterxml.jackson.annotation.JsonProperty;
+import com.planwith.planwith_fo_comment.application.query.CommentPermissionResult;
 import com.planwith.planwith_fo_comment.application.query.CommentQueryResult;
 
 import io.swagger.v3.oas.annotations.media.Schema;
@@ -26,10 +27,12 @@ public record CommentResponse(
 		Instant createdAt,
 		Instant updatedAt,
 		@JsonProperty("isUpdated")
-		boolean isUpdated
+		boolean isUpdated,
+		boolean canEdit,
+		boolean canDelete
 ) {
 
-	public static CommentResponse from(CommentQueryResult result) {
+	public static CommentResponse from(CommentQueryResult result, CommentPermissionResult permission) {
 		return new CommentResponse(
 				result.commentUuid(),
 				result.storyUuid(),
@@ -46,7 +49,9 @@ public record CommentResponse(
 				result.storyStatus(),
 				result.createdAt(),
 				result.updatedAt(),
-				isUpdated(result.createdAt(), result.updatedAt())
+				isUpdated(result.createdAt(), result.updatedAt()),
+				permission.canEdit(),
+				permission.canDelete()
 		);
 	}
 

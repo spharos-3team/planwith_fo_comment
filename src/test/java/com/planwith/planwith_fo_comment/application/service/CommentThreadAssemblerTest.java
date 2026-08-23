@@ -17,7 +17,7 @@ import com.planwith.planwith_fo_comment.domain.memberprojection.MemberRole;
 @SuppressWarnings("null")
 class CommentThreadAssemblerTest {
 
-	private final CommentThreadAssembler assembler = new CommentThreadAssembler();
+	private final CommentThreadAssembler assembler = new CommentThreadAssembler(new CommentPermissionResolver());
 
 	@Test
 	void assembleSortsRootsByLatestAndNestsRepliesInCreatedOrder() {
