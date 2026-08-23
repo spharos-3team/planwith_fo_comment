@@ -24,7 +24,7 @@ import com.fasterxml.jackson.databind.ObjectMapper;
 import com.planwith.planwith_fo_comment.application.command.HandleLikeCommand;
 import com.planwith.planwith_fo_comment.application.command.SyncMemberProjectionCommand;
 import com.planwith.planwith_fo_comment.application.command.SyncStoryProjectionCommand;
-import com.planwith.planwith_fo_comment.application.port.in.HandleLikeCreatedUseCase;
+import com.planwith.planwith_fo_comment.application.port.in.HandleCommentLikedUseCase;
 import com.planwith.planwith_fo_comment.application.port.in.SyncMemberProjectionUseCase;
 import com.planwith.planwith_fo_comment.application.port.in.SyncStoryProjectionUseCase;
 
@@ -47,7 +47,7 @@ class CommentWebAdapterIntegrationTests {
 	private SyncMemberProjectionUseCase syncMemberProjectionUseCase;
 
 	@Autowired
-	private HandleLikeCreatedUseCase handleLikeCreatedUseCase;
+	private HandleCommentLikedUseCase handleCommentLikedUseCase;
 
 	@Test
 	void createListDetailUpdateAndDeleteThroughWebAdapter() throws Exception {
@@ -312,7 +312,7 @@ class CommentWebAdapterIntegrationTests {
 				.andExpect(jsonPath("$[1].isUpdated").value(true))
 				.andExpect(jsonPath("$[1].commentContent").value("수정된 이전 댓글"));
 
-		handleLikeCreatedUseCase.handleCreated(new HandleLikeCommand(
+		handleCommentLikedUseCase.handleLiked(new HandleLikeCommand(
 				UUID.randomUUID(),
 				UUID.fromString(olderUuid),
 				authorUuid

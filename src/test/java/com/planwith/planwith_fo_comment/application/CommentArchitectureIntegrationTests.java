@@ -23,8 +23,8 @@ import com.planwith.planwith_fo_comment.application.port.in.CreateCommentUseCase
 import com.planwith.planwith_fo_comment.application.port.in.DeleteCommentUseCase;
 import com.planwith.planwith_fo_comment.application.port.in.GetCommentUseCase;
 import com.planwith.planwith_fo_comment.application.port.in.GetCommentsByStoryUseCase;
-import com.planwith.planwith_fo_comment.application.port.in.HandleLikeCreatedUseCase;
-import com.planwith.planwith_fo_comment.application.port.in.HandleLikeRemovedUseCase;
+import com.planwith.planwith_fo_comment.application.port.in.HandleCommentLikedUseCase;
+import com.planwith.planwith_fo_comment.application.port.in.HandleCommentUnlikedUseCase;
 import com.planwith.planwith_fo_comment.application.port.in.MarkStoryDeletedUseCase;
 import com.planwith.planwith_fo_comment.application.port.in.SyncMemberProjectionUseCase;
 import com.planwith.planwith_fo_comment.application.port.in.SyncStoryProjectionUseCase;
@@ -81,10 +81,10 @@ class CommentArchitectureIntegrationTests {
 	private MarkStoryDeletedUseCase markStoryDeletedUseCase;
 
 	@Autowired
-	private HandleLikeCreatedUseCase handleLikeCreatedUseCase;
+	private HandleCommentLikedUseCase handleCommentLikedUseCase;
 
 	@Autowired
-	private HandleLikeRemovedUseCase handleLikeRemovedUseCase;
+	private HandleCommentUnlikedUseCase handleCommentUnlikedUseCase;
 
 	@Autowired
 	private CommentOutboxPort commentOutboxPort;
@@ -365,7 +365,7 @@ class CommentArchitectureIntegrationTests {
 	}
 
 	@Test
-	void likeEventsUpdateLocalLikeProjection() {
+	void commentLikedAndUnlikedEventsUpdateLikeCountProjection() {
 		UUID memberUuid = UUID.randomUUID();
 		UUID storyUuid = UUID.randomUUID();
 		enableStory(storyUuid);
@@ -374,14 +374,24 @@ class CommentArchitectureIntegrationTests {
 		);
 		UUID likeUuid = UUID.randomUUID();
 
-		handleLikeCreatedUseCase.handleCreated(new HandleLikeCommand(likeUuid, created.commentUuid(), memberUuid));
-		handleLikeCreatedUseCase.handleCreated(new HandleLikeCommand(likeUuid, created.commentUuid(), memberUuid));
+		handleCommentLikedUseCase.handleLiked(new HandleLikeCommand(likeUuid, created.commentUuid(), memberUuid));
+		handleCommentLikedUseCase.handleLiked(new HandleLikeCommand(likeUuid, created.commentUuid(), memberUuid));
 		CommentQueryResult liked = getCommentUseCase.get(new GetCommentQuery(created.commentUuid()));
 		assertThat(liked.likeCount()).isEqualTo(1);
 
-		handleLikeRemovedUseCase.handleRemoved(new HandleLikeCommand(likeUuid, created.commentUuid(), memberUuid));
+		handleCommentUnlikedUseCase.handleUnliked(new HandleLikeCommand(likeUuid, created.commentUuid(), memberUuid));
+		handleCommentUnlikedUseCase.handleUnliked(new HandleLikeCommand(likeUuid, created.commentUuid(), memberUuid));
 		CommentQueryResult unliked = getCommentUseCase.get(new GetCommentQuery(created.commentUuid()));
 		assertThat(unliked.likeCount()).isZero();
+
+		handleCommentUnlikedUseCase.handleUnliked(
+				new HandleLikeCommand(UUID.randomUUID(), created.commentUuid(), memberUuid)
+		);
+		assertThat(getCommentUseCase.get(new GetCommentQuery(created.commentUuid())).likeCount()).isZero();
+
+		UUID missingCommentUuid = UUID.randomUUID();
+		handleCommentLikedUseCase.handleLiked(new HandleLikeCommand(UUID.randomUUID(), missingCommentUuid, memberUuid));
+		assertThat(getCommentUseCase.get(new GetCommentQuery(created.commentUuid())).likeCount()).isZero();
 	}
 
 	@Test
@@ -418,7 +428,7 @@ class CommentArchitectureIntegrationTests {
 			comment.hide();
 			commentCommandPort.save(comment);
 		});
-		handleLikeCreatedUseCase.handleCreated(new HandleLikeCommand(
+		handleCommentLikedUseCase.handleLiked(new HandleLikeCommand(
 				UUID.randomUUID(),
 				older.commentUuid(),
 				authorUuid
