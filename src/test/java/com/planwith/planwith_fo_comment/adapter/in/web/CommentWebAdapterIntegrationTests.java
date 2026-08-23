@@ -1,5 +1,6 @@
 package com.planwith.planwith_fo_comment.adapter.in.web;
 
+import static org.assertj.core.api.Assertions.assertThat;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.delete;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.patch;
@@ -162,7 +163,7 @@ class CommentWebAdapterIntegrationTests {
 				"ACTIVE"
 		));
 
-		mockMvc.perform(post("/api/planwith-fo-comment/comments")
+		MvcResult created = mockMvc.perform(post("/api/planwith-fo-comment/comments")
 						.header("X-Member-Uuid", memberUuid)
 						.contentType(MediaType.APPLICATION_JSON)
 						.content("""
@@ -184,7 +185,14 @@ class CommentWebAdapterIntegrationTests {
 				.andExpect(jsonPath("$.reportCount").value(0))
 				.andExpect(jsonPath("$.createdAt").exists())
 				.andExpect(jsonPath("$.canEdit").value(true))
-				.andExpect(jsonPath("$.canDelete").value(true));
+				.andExpect(jsonPath("$.canDelete").value(true))
+				.andReturn();
+
+		String commentUuid = objectMapper.readTree(created.getResponse().getContentAsString())
+				.get("commentUuid")
+				.asText();
+		assertThat(created.getResponse().getHeader("Location"))
+				.endsWith("/api/planwith-fo-comment/comments/" + commentUuid);
 	}
 
 	@Test
