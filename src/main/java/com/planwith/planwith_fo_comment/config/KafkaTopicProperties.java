@@ -10,6 +10,7 @@ public record KafkaTopicProperties(
 		String storyDeleted,
 		String likeCreated,
 		String likeRemoved,
+		String reportCreated,
 		String commentCreated,
 		String commentUpdated,
 		String commentDeleted

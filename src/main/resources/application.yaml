@@ -78,6 +78,7 @@ app:
       story-deleted: ${KAFKA_TOPIC_STORY_DELETED:story.deleted}
       like-created: ${KAFKA_TOPIC_LIKE_CREATED:like.created} # CommentLikedEvent
       like-removed: ${KAFKA_TOPIC_LIKE_REMOVED:like.removed} # CommentUnlikedEvent
+      report-created: ${KAFKA_TOPIC_REPORT_CREATED:report.created} # CommentReportedEvent
       comment-created: ${KAFKA_TOPIC_COMMENT_CREATED:comment.created}
       comment-updated: ${KAFKA_TOPIC_COMMENT_UPDATED:comment.updated}
       comment-deleted: ${KAFKA_TOPIC_COMMENT_DELETED:comment.deleted}

@@ -123,6 +123,18 @@ class StoryCommentTest {
 	}
 
 	@Test
+	void reportCountIncreasesWithoutChangingUpdatedAt() {
+		StoryComment comment = StoryComment.createRoot(UUID.randomUUID(), UUID.randomUUID(), "신고 대상");
+		Instant updatedAt = comment.getUpdatedAt();
+
+		comment.increaseReportCount();
+		comment.increaseReportCount();
+
+		assertThat(comment.getReportCount()).isEqualTo(2);
+		assertThat(comment.getUpdatedAt()).isEqualTo(updatedAt);
+	}
+
+	@Test
 	void rejectBlankOrTooLongContent() {
 		UUID storyUuid = UUID.randomUUID();
 		UUID memberUuid = UUID.randomUUID();
