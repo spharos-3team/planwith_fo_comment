@@ -42,19 +42,19 @@ public class CommentCommandController {
 	private final UpdateCommentUseCase updateCommentUseCase;
 	private final DeleteCommentUseCase deleteCommentUseCase;
 
-	// 댓글 생성
+	// 댓글 작성
 	@PostMapping
-	@Operation(summary = "댓글 생성")
+	@Operation(summary = "댓글 작성", description = "댓글 또는 대댓글을 Comment DB에 저장한 뒤 생성된 댓글을 즉시 반환한다.")
 	public ResponseEntity<CommentResponse> createComment(
 			@RequestHeader(value = "X-Member-Uuid", required = false) UUID memberUuid,
 			@Valid @RequestBody CreateCommentRequest request
 	) {
-		log.info("CommentCommandController : POST createComment : 댓글 생성 요청");
+		log.info("CommentCommandController : POST createComment : 댓글 작성 요청");
 		CommentResponse response = CommentResponse.from(
 				createCommentUseCase.create(new CreateCommentCommand(
 						request.storyUuid(),
 						memberUuid,
-						request.content(),
+						request.commentContent(),
 						request.parentCommentUuid()
 				))
 		);
