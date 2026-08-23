@@ -1,5 +1,6 @@
 package com.planwith.planwith_fo_comment.adapter.in.web;
 
+import java.util.ArrayList;
 import java.util.List;
 import java.util.UUID;
 
@@ -14,10 +15,14 @@ import org.springframework.web.bind.annotation.RestController;
 
 import com.planwith.planwith_fo_comment.adapter.in.web.dto.CommentResponse;
 import com.planwith.planwith_fo_comment.adapter.in.web.dto.CommentThreadResponse;
+import com.planwith.planwith_fo_comment.adapter.in.web.dto.ManagedCommentResponse;
 import com.planwith.planwith_fo_comment.application.port.in.GetCommentUseCase;
 import com.planwith.planwith_fo_comment.application.port.in.GetCommentsByStoryUseCase;
+import com.planwith.planwith_fo_comment.application.port.in.GetManagedCommentsUseCase;
 import com.planwith.planwith_fo_comment.application.query.GetCommentQuery;
 import com.planwith.planwith_fo_comment.application.query.GetCommentsByStoryQuery;
+import com.planwith.planwith_fo_comment.application.query.GetManagedCommentsQuery;
+import com.planwith.planwith_fo_comment.application.query.ManagedCommentResult;
 import com.planwith.planwith_fo_comment.domain.comment.CommentSort;
 import com.planwith.planwith_fo_comment.domain.memberprojection.MemberRole;
 
@@ -36,6 +41,7 @@ public class CommentQueryController {
 
 	private final GetCommentUseCase getCommentUseCase;
 	private final GetCommentsByStoryUseCase getCommentsByStoryUseCase;
+	private final GetManagedCommentsUseCase getManagedCommentsUseCase;
 
 	// Story별 댓글 목록 조회
 	@GetMapping("/stories/{storyUuid}/comments")
@@ -62,6 +68,23 @@ public class CommentQueryController {
 				.stream()
 				.map(CommentThreadResponse::from)
 				.toList();
+		return ResponseEntity.ok(responses);
+	}
+
+	@GetMapping("/stories/{storyUuid}/comments/management")
+	@Operation(summary = "숨김 댓글 관리 조회", description = "Story 작성자 또는 ADMIN이 숨김 댓글을 신고 횟수 내림차순으로 조회합니다.")
+	public ResponseEntity<List<ManagedCommentResponse>> getManagedComments(
+			@PathVariable UUID storyUuid,
+			@RequestHeader(value = "X-Member-Uuid", required = false) UUID memberUuid,
+			@RequestHeader(value = "X-Member-Role", required = false) String memberRole
+	) {
+		List<ManagedCommentResult> results = getManagedCommentsUseCase.getManagedComments(
+				new GetManagedCommentsQuery(storyUuid, memberUuid, MemberRole.from(memberRole))
+		);
+		List<ManagedCommentResponse> responses = new ArrayList<>(results.size());
+		for (ManagedCommentResult result : results) {
+			responses.add(ManagedCommentResponse.from(result));
+		}
 		return ResponseEntity.ok(responses);
 	}
 

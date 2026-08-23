@@ -1,5 +1,6 @@
 package com.planwith.planwith_fo_comment.adapter.out.persistence.comment;
 
+import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
@@ -17,6 +18,7 @@ import com.planwith.planwith_fo_comment.adapter.out.persistence.storyprojection.
 import com.planwith.planwith_fo_comment.application.port.out.CommentCommandPort;
 import com.planwith.planwith_fo_comment.application.port.out.CommentQueryPort;
 import com.planwith.planwith_fo_comment.application.query.CommentQueryResult;
+import com.planwith.planwith_fo_comment.application.query.ManagedCommentResult;
 import com.planwith.planwith_fo_comment.domain.comment.ModerationStatus;
 import com.planwith.planwith_fo_comment.domain.comment.StoryComment;
 
@@ -75,6 +77,26 @@ public class CommentPersistenceAdapter implements CommentCommandPort, CommentQue
 				.toList();
 	}
 
+	@Override
+	public List<ManagedCommentResult> findHiddenByStoryUuid(UUID storyUuid) {
+		List<StoryCommentJpaEntity> comments = storyCommentJpaRepository
+				.findByStoryUuidAndModerationStatusAndDeletedAtIsNullOrderByReportCountDescCreatedAtDesc(
+						storyUuid,
+						ModerationStatus.HIDDEN
+				);
+		Set<UUID> memberUuids = comments.stream()
+				.map(StoryCommentJpaEntity::getMemberUuid)
+				.collect(Collectors.toSet());
+		Map<UUID, CommentMemberProjectionJpaEntity> memberProjections = findMemberProjectionMap(memberUuids);
+
+		List<ManagedCommentResult> results = new ArrayList<>(comments.size());
+		for (StoryCommentJpaEntity comment : comments) {
+			CommentMemberProjectionJpaEntity memberProjection = memberProjections.get(comment.getMemberUuid());
+			results.add(toManagedCommentResult(comment, memberProjection));
+		}
+		return results;
+	}
+
 	@SuppressWarnings("null")
 	private Map<UUID, CommentMemberProjectionJpaEntity> findMemberProjectionMap(Set<UUID> memberUuids) {
 		if (memberUuids.isEmpty()) {
@@ -121,6 +143,21 @@ public class CommentPersistenceAdapter implements CommentCommandPort, CommentQue
 				entity.getCreatedAt(),
 				entity.getUpdatedAt(),
 				entity.getDeletedAt() != null
+		);
+	}
+
+	private ManagedCommentResult toManagedCommentResult(
+			StoryCommentJpaEntity comment,
+			CommentMemberProjectionJpaEntity memberProjection
+	) {
+		return new ManagedCommentResult(
+				comment.getCommentUuid(),
+				memberProjection == null ? null : memberProjection.getProfileImage(),
+				memberProjection == null ? null : memberProjection.getNickname(),
+				comment.getCommentContent(),
+				comment.getReportCount(),
+				comment.getCreatedAt(),
+				comment.getHiddenAt()
 		);
 	}
 }
