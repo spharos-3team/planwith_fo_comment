@@ -34,7 +34,14 @@ public class MemberProjection {
 			String profileImage,
 			MemberStatus memberStatus
 	) {
-		return new MemberProjection(memberUuid, nickname, profileImage, memberStatus, 0L, Instant.now());
+		return new MemberProjection(
+				memberUuid,
+				normalizeNickname(nickname),
+				profileImage,
+				memberStatus,
+				0L,
+				Instant.now()
+		);
 	}
 
 	public static MemberProjection restore(
@@ -55,12 +62,23 @@ public class MemberProjection {
 		);
 	}
 
-	public void sync(String nickname, String profileImage, MemberStatus memberStatus) {
-		this.nickname = nickname;
+	public boolean apply(String nickname, String profileImage, MemberStatus memberStatus, long incomingVersion) {
+		if (incomingVersion > 0 && incomingVersion <= sourceVersion) {
+			return false;
+		}
+		this.nickname = normalizeNickname(nickname);
 		this.profileImage = profileImage;
 		this.memberStatus = memberStatus;
-		this.sourceVersion += 1;
+		this.sourceVersion = incomingVersion > 0 ? incomingVersion : sourceVersion + 1;
 		this.synchronizedAt = Instant.now();
+		return true;
+	}
+
+	private static String normalizeNickname(String nickname) {
+		if (nickname == null) {
+			return "";
+		}
+		return nickname.length() <= 20 ? nickname : nickname.substring(0, 20);
 	}
 
 	public UUID getMemberUuid() {

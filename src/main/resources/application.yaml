@@ -72,7 +72,10 @@ app:
   kafka:
     enabled: ${KAFKA_ENABLED:false}
     topics:
-      member-profile-changed: ${KAFKA_TOPIC_MEMBER_PROFILE_CHANGED:member.profile.changed}
+      member-changed: ${KAFKA_TOPIC_MEMBER_CHANGED:member.changed}
+      story-created: ${KAFKA_TOPIC_STORY_CREATED:story.created}
+      story-updated: ${KAFKA_TOPIC_STORY_UPDATED:story.updated}
+      story-deleted: ${KAFKA_TOPIC_STORY_DELETED:story.deleted}
       like-created: ${KAFKA_TOPIC_LIKE_CREATED:like.created}
       like-removed: ${KAFKA_TOPIC_LIKE_REMOVED:like.removed}
       comment-created: ${KAFKA_TOPIC_COMMENT_CREATED:comment.created}

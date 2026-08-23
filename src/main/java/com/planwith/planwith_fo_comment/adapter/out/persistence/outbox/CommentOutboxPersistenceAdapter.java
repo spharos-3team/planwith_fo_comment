@@ -8,6 +8,7 @@ import org.springframework.stereotype.Component;
 
 import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.databind.ObjectMapper;
+import com.planwith.planwith_fo_comment.adapter.out.kafka.event.CommentChangedEvent;
 import com.planwith.planwith_fo_comment.application.port.out.CommentOutboxPort;
 import com.planwith.planwith_fo_comment.domain.comment.StoryComment;
 import com.planwith.planwith_fo_comment.domain.comment.CommentEventType;
@@ -76,11 +77,12 @@ public class CommentOutboxPersistenceAdapter implements CommentOutboxPort {
 	}
 
 	private String toPayload(StoryComment comment, CommentEventType eventType) {
-		CommentOutboxPayload payload = new CommentOutboxPayload(
+		CommentChangedEvent payload = new CommentChangedEvent(
 				eventType.name(),
 				comment.getCommentUuid(),
 				comment.getStoryUuid(),
 				comment.getMemberUuid(),
+				comment.getParentCommentUuid(),
 				comment.getUpdatedAt()
 		);
 		try {
@@ -102,12 +104,4 @@ public class CommentOutboxPersistenceAdapter implements CommentOutboxPort {
 		);
 	}
 
-	public record CommentOutboxPayload(
-			String eventType,
-			UUID commentUuid,
-			UUID storyUuid,
-			UUID memberUuid,
-			java.time.Instant occurredAt
-	) {
-	}
 }

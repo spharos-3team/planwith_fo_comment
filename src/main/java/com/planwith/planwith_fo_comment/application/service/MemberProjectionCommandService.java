@@ -23,8 +23,9 @@ public class MemberProjectionCommandService implements SyncMemberProjectionUseCa
 	@Transactional
 	public void sync(SyncMemberProjectionCommand command) {
 		log.info(
-				"MemberProjectionCommandService : sync : Member Projection 동기화 시작 - memberUuid={}",
-				command.memberUuid()
+				"MemberProjectionCommandService : sync : Member Projection 동기화 시작 - memberUuid={}, sourceVersion={}",
+				command.memberUuid(),
+				command.incomingVersion()
 		);
 
 		MemberStatus memberStatus = MemberStatus.from(command.memberStatus());
@@ -35,12 +36,27 @@ public class MemberProjectionCommandService implements SyncMemberProjectionUseCa
 						command.profileImage(),
 						memberStatus
 				));
-		projection.sync(command.nickname(), command.profileImage(), memberStatus);
+		boolean applied = projection.apply(
+				command.nickname(),
+				command.profileImage(),
+				memberStatus,
+				command.incomingVersion()
+		);
+		if (!applied) {
+			log.warn(
+					"MemberProjectionCommandService : sync : 이전 버전 Member 이벤트 무시 - memberUuid={}, incomingVersion={}, currentVersion={}",
+					command.memberUuid(),
+					command.incomingVersion(),
+					projection.getSourceVersion()
+			);
+			return;
+		}
 		memberProjectionPort.save(projection);
 
 		log.info(
-				"MemberProjectionCommandService : sync : Member Projection 동기화 완료 - memberUuid={}",
-				command.memberUuid()
+				"MemberProjectionCommandService : sync : Member Projection 동기화 완료 - memberUuid={}, sourceVersion={}",
+				command.memberUuid(),
+				projection.getSourceVersion()
 		);
 	}
 }

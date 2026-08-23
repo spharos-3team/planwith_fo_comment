@@ -12,6 +12,8 @@ import org.springframework.stereotype.Component;
 
 import com.planwith.planwith_fo_comment.adapter.out.persistence.memberprojection.CommentMemberProjectionJpaEntity;
 import com.planwith.planwith_fo_comment.adapter.out.persistence.memberprojection.CommentMemberProjectionJpaRepository;
+import com.planwith.planwith_fo_comment.adapter.out.persistence.storyprojection.CommentStoryProjectionJpaEntity;
+import com.planwith.planwith_fo_comment.adapter.out.persistence.storyprojection.CommentStoryProjectionJpaRepository;
 import com.planwith.planwith_fo_comment.application.port.out.CommentCommandPort;
 import com.planwith.planwith_fo_comment.application.port.out.CommentQueryPort;
 import com.planwith.planwith_fo_comment.application.query.CommentQueryResult;
@@ -26,6 +28,7 @@ public class CommentPersistenceAdapter implements CommentCommandPort, CommentQue
 
 	private final StoryCommentJpaRepository storyCommentJpaRepository;
 	private final CommentMemberProjectionJpaRepository memberProjectionJpaRepository;
+	private final CommentStoryProjectionJpaRepository storyProjectionJpaRepository;
 
 	@Override
 	public void save(StoryComment comment) {
@@ -47,7 +50,11 @@ public class CommentPersistenceAdapter implements CommentCommandPort, CommentQue
 		return storyCommentJpaRepository.findByCommentUuid(commentUuid)
 				.filter(entity -> entity.getDeletedAt() == null)
 				.filter(entity -> entity.getModerationStatus() == ModerationStatus.VISIBLE)
-				.map(entity -> toQueryResult(entity, findProjectionMap(Set.of(entity.getMemberUuid()))));
+				.map(entity -> toQueryResult(
+						entity,
+						findMemberProjectionMap(Set.of(entity.getMemberUuid())),
+						findStoryProjectionMap(Set.of(entity.getStoryUuid()))
+				));
 	}
 
 	@Override
@@ -60,13 +67,17 @@ public class CommentPersistenceAdapter implements CommentCommandPort, CommentQue
 		Set<UUID> memberUuids = comments.stream()
 				.map(StoryCommentJpaEntity::getMemberUuid)
 				.collect(Collectors.toSet());
-		Map<UUID, CommentMemberProjectionJpaEntity> projections = findProjectionMap(memberUuids);
+		Set<UUID> storyUuids = comments.stream()
+				.map(StoryCommentJpaEntity::getStoryUuid)
+				.collect(Collectors.toSet());
+		Map<UUID, CommentMemberProjectionJpaEntity> memberProjections = findMemberProjectionMap(memberUuids);
+		Map<UUID, CommentStoryProjectionJpaEntity> storyProjections = findStoryProjectionMap(storyUuids);
 		return comments.stream()
-				.map(entity -> toQueryResult(entity, projections))
+				.map(entity -> toQueryResult(entity, memberProjections, storyProjections))
 				.toList();
 	}
 
-	private Map<UUID, CommentMemberProjectionJpaEntity> findProjectionMap(Set<UUID> memberUuids) {
+	private Map<UUID, CommentMemberProjectionJpaEntity> findMemberProjectionMap(Set<UUID> memberUuids) {
 		if (memberUuids.isEmpty()) {
 			return Map.of();
 		}
@@ -74,23 +85,39 @@ public class CommentPersistenceAdapter implements CommentCommandPort, CommentQue
 				.collect(Collectors.toMap(CommentMemberProjectionJpaEntity::getMemberUuid, Function.identity()));
 	}
 
+	private Map<UUID, CommentStoryProjectionJpaEntity> findStoryProjectionMap(Set<UUID> storyUuids) {
+		if (storyUuids.isEmpty()) {
+			return Map.of();
+		}
+		return storyProjectionJpaRepository.findByStoryUuidIn(storyUuids).stream()
+				.collect(Collectors.toMap(CommentStoryProjectionJpaEntity::getStoryUuid, Function.identity()));
+	}
+
 	private CommentQueryResult toQueryResult(
 			StoryCommentJpaEntity entity,
-			Map<UUID, CommentMemberProjectionJpaEntity> projections
+			Map<UUID, CommentMemberProjectionJpaEntity> memberProjections,
+			Map<UUID, CommentStoryProjectionJpaEntity> storyProjections
 	) {
-		CommentMemberProjectionJpaEntity projection = projections.get(entity.getMemberUuid());
+		CommentMemberProjectionJpaEntity memberProjection = memberProjections.get(entity.getMemberUuid());
+		CommentStoryProjectionJpaEntity storyProjection = storyProjections.get(entity.getStoryUuid());
 		return new CommentQueryResult(
 				entity.getCommentUuid(),
 				entity.getStoryUuid(),
 				entity.getMemberUuid(),
 				entity.getParentCommentUuid(),
-				projection == null ? null : projection.getNickname(),
-				projection == null ? null : projection.getProfileImage(),
-				projection == null || projection.getMemberStatus() == null
+				memberProjection == null ? null : memberProjection.getNickname(),
+				memberProjection == null ? null : memberProjection.getProfileImage(),
+				memberProjection == null || memberProjection.getMemberStatus() == null
 						? null
-						: projection.getMemberStatus().name(),
+						: memberProjection.getMemberStatus().name(),
 				entity.getCommentContent(),
 				entity.getCommentLikeCount(),
+				entity.getReportCount(),
+				storyProjection == null ? null : storyProjection.getOwnerMemberUuid(),
+				storyProjection == null ? null : storyProjection.isCommentEnabled(),
+				storyProjection == null || storyProjection.getStoryStatus() == null
+						? null
+						: storyProjection.getStoryStatus().name(),
 				entity.getCreatedAt(),
 				entity.getUpdatedAt()
 		);
