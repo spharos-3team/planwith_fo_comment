@@ -11,8 +11,12 @@ public record CommentQueryResult(
 		String nickname,
 		String profileImage,
 		String memberStatus,
-		String content,
+		String commentContent,
 		long likeCount,
+		long reportCount,
+		UUID storyOwnerMemberUuid,
+		Boolean commentEnabled,
+		String storyStatus,
 		Instant createdAt,
 		Instant updatedAt
 ) {

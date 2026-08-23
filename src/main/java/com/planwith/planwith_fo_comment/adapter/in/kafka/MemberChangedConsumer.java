@@ -6,7 +6,7 @@ import org.springframework.stereotype.Component;
 
 import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.databind.ObjectMapper;
-import com.planwith.planwith_fo_comment.adapter.in.kafka.event.MemberProfileChangedEvent;
+import com.planwith.planwith_fo_comment.adapter.in.kafka.event.MemberChangedEvent;
 import com.planwith.planwith_fo_comment.application.command.SyncMemberProjectionCommand;
 import com.planwith.planwith_fo_comment.application.port.in.SyncMemberProjectionUseCase;
 
@@ -17,29 +17,30 @@ import lombok.extern.slf4j.Slf4j;
 @Component
 @RequiredArgsConstructor
 @ConditionalOnProperty(name = "app.kafka.enabled", havingValue = "true")
-public class MemberProfileChangedConsumer {
+public class MemberChangedConsumer {
 
 	private final ObjectMapper objectMapper;
 	private final SyncMemberProjectionUseCase syncMemberProjectionUseCase;
 
-	@KafkaListener(topics = "${app.kafka.topics.member-profile-changed}")
+	@KafkaListener(topics = "${app.kafka.topics.member-changed}")
 	public void consume(String message) {
-		log.info("MemberProfileChangedConsumer : consume : MemberProfileChanged 이벤트 수신");
-		MemberProfileChangedEvent event = read(message, MemberProfileChangedEvent.class);
+		log.info("MemberChangedConsumer : consume : MemberChanged 이벤트 수신");
+		MemberChangedEvent event = read(message);
 		syncMemberProjectionUseCase.sync(new SyncMemberProjectionCommand(
 				event.memberUuid(),
 				event.nickname(),
 				event.profileImage(),
-				event.memberStatus()
+				event.memberStatus(),
+				event.sourceVersion()
 		));
 	}
 
-	private <T> T read(String message, Class<T> type) {
+	private MemberChangedEvent read(String message) {
 		try {
-			return objectMapper.readValue(message, type);
+			return objectMapper.readValue(message, MemberChangedEvent.class);
 		} catch (JsonProcessingException exception) {
-			log.error("MemberProfileChangedConsumer : consume : MemberProfileChanged 이벤트 역직렬화 실패");
-			throw new IllegalArgumentException("MemberProfileChanged 이벤트 형식이 올바르지 않습니다.", exception);
+			log.error("MemberChangedConsumer : consume : MemberChanged 이벤트 역직렬화 실패");
+			throw new IllegalArgumentException("MemberChanged 이벤트 형식이 올바르지 않습니다.", exception);
 		}
 	}
 }

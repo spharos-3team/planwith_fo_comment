@@ -14,10 +14,12 @@ import com.planwith.planwith_fo_comment.application.port.in.UpdateCommentUseCase
 import com.planwith.planwith_fo_comment.application.port.out.CommentCommandPort;
 import com.planwith.planwith_fo_comment.application.port.out.CommentOutboxPort;
 import com.planwith.planwith_fo_comment.application.port.out.MemberProjectionPort;
+import com.planwith.planwith_fo_comment.application.port.out.StoryProjectionPort;
 import com.planwith.planwith_fo_comment.application.query.CommentQueryResult;
 import com.planwith.planwith_fo_comment.domain.comment.StoryComment;
 import com.planwith.planwith_fo_comment.domain.exception.CommentNotFoundException;
 import com.planwith.planwith_fo_comment.domain.memberprojection.MemberProjection;
+import com.planwith.planwith_fo_comment.domain.storyprojection.StoryProjection;
 
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
@@ -30,6 +32,7 @@ public class CommentCommandService implements CreateCommentUseCase, UpdateCommen
 	private final CommentCommandPort commentCommandPort;
 	private final CommentOutboxPort commentOutboxPort;
 	private final MemberProjectionPort memberProjectionPort;
+	private final StoryProjectionPort storyProjectionPort;
 
 	@Override
 	@Transactional
@@ -110,20 +113,28 @@ public class CommentCommandService implements CreateCommentUseCase, UpdateCommen
 	}
 
 	private CommentQueryResult toQueryResult(StoryComment comment) {
-		MemberProjection projection = memberProjectionPort.findByMemberUuid(comment.getMemberUuid())
+		MemberProjection memberProjection = memberProjectionPort.findByMemberUuid(comment.getMemberUuid())
+				.orElse(null);
+		StoryProjection storyProjection = storyProjectionPort.findByStoryUuid(comment.getStoryUuid())
 				.orElse(null);
 		return new CommentQueryResult(
 				comment.getCommentUuid(),
 				comment.getStoryUuid(),
 				comment.getMemberUuid(),
 				comment.getParentCommentUuid(),
-				projection == null ? null : projection.getNickname(),
-				projection == null ? null : projection.getProfileImage(),
-				projection == null || projection.getMemberStatus() == null
+				memberProjection == null ? null : memberProjection.getNickname(),
+				memberProjection == null ? null : memberProjection.getProfileImage(),
+				memberProjection == null || memberProjection.getMemberStatus() == null
 						? null
-						: projection.getMemberStatus().name(),
+						: memberProjection.getMemberStatus().name(),
 				comment.getCommentContent(),
 				comment.getCommentLikeCount(),
+				comment.getReportCount(),
+				storyProjection == null ? null : storyProjection.getOwnerMemberUuid(),
+				storyProjection == null ? null : storyProjection.isCommentEnabled(),
+				storyProjection == null || storyProjection.getStoryStatus() == null
+						? null
+						: storyProjection.getStoryStatus().name(),
 				comment.getCreatedAt(),
 				comment.getUpdatedAt()
 		);

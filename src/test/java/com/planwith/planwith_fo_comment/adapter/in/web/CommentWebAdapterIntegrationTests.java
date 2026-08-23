@@ -50,7 +50,7 @@ class CommentWebAdapterIntegrationTests {
 								""".formatted(storyUuid)))
 				.andExpect(status().isCreated())
 				.andExpect(jsonPath("$.commentUuid").exists())
-				.andExpect(jsonPath("$.content").value("웹 어댑터 댓글"))
+				.andExpect(jsonPath("$.commentContent").value("웹 어댑터 댓글"))
 				.andReturn();
 
 		JsonNode body = objectMapper.readTree(created.getResponse().getContentAsString());
@@ -75,7 +75,7 @@ class CommentWebAdapterIntegrationTests {
 								}
 								"""))
 				.andExpect(status().isOk())
-				.andExpect(jsonPath("$.content").value("수정된 웹 댓글"));
+				.andExpect(jsonPath("$.commentContent").value("수정된 웹 댓글"));
 
 		mockMvc.perform(delete("/api/planwith-fo-comment/comments/{commentUuid}", commentUuid)
 						.header("X-Member-Uuid", memberUuid))
@@ -119,7 +119,7 @@ class CommentWebAdapterIntegrationTests {
 								""".formatted(storyUuid, parentUuid)))
 				.andExpect(status().isCreated())
 				.andExpect(jsonPath("$.parentCommentUuid").value(parentUuid))
-				.andExpect(jsonPath("$.content").value("대댓글"));
+				.andExpect(jsonPath("$.commentContent").value("대댓글"));
 	}
 
 	@Test
