@@ -30,10 +30,13 @@ import com.planwith.planwith_fo_comment.application.port.in.SyncMemberProjection
 import com.planwith.planwith_fo_comment.application.port.in.SyncStoryProjectionUseCase;
 import com.planwith.planwith_fo_comment.application.port.in.UpdateCommentUseCase;
 import com.planwith.planwith_fo_comment.application.port.out.CommentOutboxPort;
+import com.planwith.planwith_fo_comment.application.port.out.CommentCommandPort;
 import com.planwith.planwith_fo_comment.application.query.CommentQueryResult;
+import com.planwith.planwith_fo_comment.application.query.CommentThreadResult;
 import com.planwith.planwith_fo_comment.application.query.GetCommentQuery;
 import com.planwith.planwith_fo_comment.application.query.GetCommentsByStoryQuery;
 import com.planwith.planwith_fo_comment.domain.comment.CommentEventType;
+import com.planwith.planwith_fo_comment.domain.comment.CommentSort;
 import com.planwith.planwith_fo_comment.domain.exception.CommentNotAllowedException;
 import com.planwith.planwith_fo_comment.domain.exception.CommentNotFoundException;
 import com.planwith.planwith_fo_comment.domain.exception.CommentOwnerMismatchException;
@@ -82,6 +85,9 @@ class CommentArchitectureIntegrationTests {
 	@Autowired
 	private CommentOutboxPort commentOutboxPort;
 
+	@Autowired
+	private CommentCommandPort commentCommandPort;
+
 	@Test
 	void createCommentSavesOutboxInSameTransaction() {
 		UUID storyUuid = UUID.randomUUID();
@@ -116,14 +122,17 @@ class CommentArchitectureIntegrationTests {
 		);
 
 		CommentQueryResult detail = getCommentUseCase.get(new GetCommentQuery(created.commentUuid()));
-		List<CommentQueryResult> list = getCommentsByStoryUseCase.getByStory(new GetCommentsByStoryQuery(storyUuid));
+		List<CommentThreadResult> list = getCommentsByStoryUseCase.getByStory(new GetCommentsByStoryQuery(storyUuid));
 
 		assertThat(detail.nickname()).isEqualTo("닉네임");
 		assertThat(detail.profileImage()).isEqualTo("https://image.example/profile.png");
 		assertThat(detail.memberStatus()).isEqualTo("ACTIVE");
 		assertThat(detail.commentContent()).isEqualTo("조회용 댓글");
 		assertThat(detail.reportCount()).isZero();
-		assertThat(list).extracting(CommentQueryResult::commentUuid).containsExactly(created.commentUuid());
+		assertThat(list).extracting(CommentThreadResult::commentUuid).containsExactly(created.commentUuid());
+		assertThat(list.get(0).member().nickname()).isEqualTo("닉네임");
+		assertThat(list.get(0).member().profileImage()).isEqualTo("https://image.example/profile.png");
+		assertThat(list.get(0).member().memberUuid()).isEqualTo(memberUuid);
 	}
 
 	@Test
@@ -287,6 +296,68 @@ class CommentArchitectureIntegrationTests {
 		handleLikeRemovedUseCase.handleRemoved(new HandleLikeCommand(likeUuid, created.commentUuid(), memberUuid));
 		CommentQueryResult unliked = getCommentUseCase.get(new GetCommentQuery(created.commentUuid()));
 		assertThat(unliked.likeCount()).isZero();
+	}
+
+	@Test
+	void queryCommentsByStorySortsNestsRepliesAndHidesInactive() throws InterruptedException {
+		UUID storyUuid = UUID.randomUUID();
+		UUID authorUuid = UUID.randomUUID();
+		UUID otherUuid = UUID.randomUUID();
+		syncMemberProjectionUseCase.sync(new SyncMemberProjectionCommand(
+				authorUuid,
+				"작성자",
+				"https://image.example/author.png",
+				"ACTIVE"
+		));
+		enableStory(storyUuid);
+
+		CommentQueryResult older = createCommentUseCase.create(
+				new CreateCommentCommand(storyUuid, authorUuid, "이전 댓글")
+		);
+		Thread.sleep(10);
+		CommentQueryResult newer = createCommentUseCase.create(
+				new CreateCommentCommand(storyUuid, otherUuid, "최신 댓글")
+		);
+		CommentQueryResult reply = createCommentUseCase.create(
+				new CreateCommentCommand(storyUuid, authorUuid, "대댓글", older.commentUuid())
+		);
+		CommentQueryResult deleted = createCommentUseCase.create(
+				new CreateCommentCommand(storyUuid, authorUuid, "삭제될 댓글")
+		);
+		CommentQueryResult hidden = createCommentUseCase.create(
+				new CreateCommentCommand(storyUuid, authorUuid, "숨김 댓글")
+		);
+		deleteCommentUseCase.delete(new DeleteCommentCommand(deleted.commentUuid(), authorUuid));
+		commentCommandPort.findByUuid(hidden.commentUuid()).ifPresent(comment -> {
+			comment.hide();
+			commentCommandPort.save(comment);
+		});
+		handleLikeCreatedUseCase.handleCreated(new HandleLikeCommand(
+				UUID.randomUUID(),
+				older.commentUuid(),
+				authorUuid
+		));
+
+		List<CommentThreadResult> latest = getCommentsByStoryUseCase.getByStory(
+				new GetCommentsByStoryQuery(storyUuid, CommentSort.LATEST, authorUuid)
+		);
+		assertThat(latest).extracting(CommentThreadResult::commentUuid)
+				.containsExactly(newer.commentUuid(), older.commentUuid());
+		assertThat(latest.get(1).replies()).extracting(CommentThreadResult::commentUuid)
+				.containsExactly(reply.commentUuid());
+		assertThat(latest.get(1).commentLikeCount()).isEqualTo(1);
+		assertThat(latest.get(1).canEdit()).isTrue();
+		assertThat(latest.get(0).canEdit()).isFalse();
+		assertThat(latest).extracting(CommentThreadResult::commentUuid)
+				.doesNotContain(deleted.commentUuid(), hidden.commentUuid());
+
+		List<CommentThreadResult> liked = getCommentsByStoryUseCase.getByStory(
+				new GetCommentsByStoryQuery(storyUuid, CommentSort.LIKE, null)
+		);
+		assertThat(liked).extracting(CommentThreadResult::commentUuid)
+				.containsExactly(older.commentUuid(), newer.commentUuid());
+		assertThat(liked.get(0).canEdit()).isFalse();
+		assertThat(liked.get(0).canDelete()).isFalse();
 	}
 
 	@Test

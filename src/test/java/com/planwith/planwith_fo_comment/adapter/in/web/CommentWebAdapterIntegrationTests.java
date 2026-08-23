@@ -21,8 +21,10 @@ import org.springframework.transaction.annotation.Transactional;
 
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
+import com.planwith.planwith_fo_comment.application.command.HandleLikeCommand;
 import com.planwith.planwith_fo_comment.application.command.SyncMemberProjectionCommand;
 import com.planwith.planwith_fo_comment.application.command.SyncStoryProjectionCommand;
+import com.planwith.planwith_fo_comment.application.port.in.HandleLikeCreatedUseCase;
 import com.planwith.planwith_fo_comment.application.port.in.SyncMemberProjectionUseCase;
 import com.planwith.planwith_fo_comment.application.port.in.SyncStoryProjectionUseCase;
 
@@ -43,6 +45,9 @@ class CommentWebAdapterIntegrationTests {
 
 	@Autowired
 	private SyncMemberProjectionUseCase syncMemberProjectionUseCase;
+
+	@Autowired
+	private HandleLikeCreatedUseCase handleLikeCreatedUseCase;
 
 	@Test
 	void createListDetailUpdateAndDeleteThroughWebAdapter() throws Exception {
@@ -67,10 +72,12 @@ class CommentWebAdapterIntegrationTests {
 		JsonNode body = objectMapper.readTree(created.getResponse().getContentAsString());
 		String commentUuid = body.get("commentUuid").asText();
 
-		mockMvc.perform(get("/api/planwith-fo-comment/comments")
-						.param("storyUuid", storyUuid.toString()))
+		mockMvc.perform(get("/api/planwith-fo-comment/stories/{storyUuid}/comments", storyUuid))
 				.andExpect(status().isOk())
-				.andExpect(jsonPath("$[0].commentUuid").value(commentUuid));
+				.andExpect(jsonPath("$[0].commentUuid").value(commentUuid))
+				.andExpect(jsonPath("$[0].commentContent").value("웹 어댑터 댓글"))
+				.andExpect(jsonPath("$[0].commentLikeCount").value(0))
+				.andExpect(jsonPath("$[0].replies").isArray());
 
 		mockMvc.perform(get("/api/planwith-fo-comment/comments/{commentUuid}", commentUuid))
 				.andExpect(status().isOk())
@@ -208,10 +215,117 @@ class CommentWebAdapterIntegrationTests {
 	void guestCanQueryCommentsWithoutLogin() throws Exception {
 		UUID storyUuid = UUID.randomUUID();
 
-		mockMvc.perform(get("/api/planwith-fo-comment/comments")
-						.param("storyUuid", storyUuid.toString()))
+		mockMvc.perform(get("/api/planwith-fo-comment/stories/{storyUuid}/comments", storyUuid))
 				.andExpect(status().isOk())
 				.andExpect(jsonPath("$").isArray());
+	}
+
+	@Test
+	void listCommentsByStorySupportsSortRepliesAndViewerFlags() throws Exception {
+		UUID storyUuid = UUID.randomUUID();
+		UUID authorUuid = UUID.randomUUID();
+		UUID otherUuid = UUID.randomUUID();
+		enableStory(storyUuid);
+		syncMemberProjectionUseCase.sync(new SyncMemberProjectionCommand(
+				authorUuid,
+				"작성자",
+				"https://image.example/author.png",
+				"ACTIVE"
+		));
+
+		MvcResult older = mockMvc.perform(post("/api/planwith-fo-comment/comments")
+						.header("X-Member-Uuid", authorUuid)
+						.contentType(MediaType.APPLICATION_JSON)
+						.content("""
+								{
+								  "storyUuid": "%s",
+								  "commentContent": "이전 댓글"
+								}
+								""".formatted(storyUuid)))
+				.andExpect(status().isCreated())
+				.andReturn();
+		String olderUuid = objectMapper.readTree(older.getResponse().getContentAsString())
+				.get("commentUuid")
+				.asText();
+		Thread.sleep(10);
+
+		MvcResult newer = mockMvc.perform(post("/api/planwith-fo-comment/comments")
+						.header("X-Member-Uuid", otherUuid)
+						.contentType(MediaType.APPLICATION_JSON)
+						.content("""
+								{
+								  "storyUuid": "%s",
+								  "commentContent": "최신 댓글"
+								}
+								""".formatted(storyUuid)))
+				.andExpect(status().isCreated())
+				.andReturn();
+		String newerUuid = objectMapper.readTree(newer.getResponse().getContentAsString())
+				.get("commentUuid")
+				.asText();
+
+		mockMvc.perform(post("/api/planwith-fo-comment/comments")
+						.header("X-Member-Uuid", authorUuid)
+						.contentType(MediaType.APPLICATION_JSON)
+						.content("""
+								{
+								  "storyUuid": "%s",
+								  "parentCommentUuid": "%s",
+								  "commentContent": "대댓글"
+								}
+								""".formatted(storyUuid, olderUuid)))
+				.andExpect(status().isCreated());
+
+		mockMvc.perform(get("/api/planwith-fo-comment/stories/{storyUuid}/comments", storyUuid)
+						.param("sort", "LATEST")
+						.header("X-Member-Uuid", authorUuid))
+				.andExpect(status().isOk())
+				.andExpect(jsonPath("$[0].commentUuid").value(newerUuid))
+				.andExpect(jsonPath("$[1].commentUuid").value(olderUuid))
+				.andExpect(jsonPath("$[1].member.memberUuid").value(authorUuid.toString()))
+				.andExpect(jsonPath("$[1].member.nickname").value("작성자"))
+				.andExpect(jsonPath("$[1].member.profileImage").value("https://image.example/author.png"))
+				.andExpect(jsonPath("$[1].replies[0].commentContent").value("대댓글"))
+				.andExpect(jsonPath("$[1].replies[0].parentCommentUuid").value(olderUuid))
+				.andExpect(jsonPath("$[1].canEdit").value(true))
+				.andExpect(jsonPath("$[1].canDelete").value(true))
+				.andExpect(jsonPath("$[0].canEdit").value(false))
+				.andExpect(jsonPath("$[1].isUpdated").value(false));
+
+		Thread.sleep(10);
+		mockMvc.perform(patch("/api/planwith-fo-comment/comments/{commentUuid}", olderUuid)
+						.header("X-Member-Uuid", authorUuid)
+						.contentType(MediaType.APPLICATION_JSON)
+						.content("""
+								{
+								  "content": "수정된 이전 댓글"
+								}
+								"""))
+				.andExpect(status().isOk());
+
+		mockMvc.perform(get("/api/planwith-fo-comment/stories/{storyUuid}/comments", storyUuid)
+						.param("sort", "LATEST")
+						.header("X-Member-Uuid", authorUuid))
+				.andExpect(status().isOk())
+				.andExpect(jsonPath("$[1].isUpdated").value(true))
+				.andExpect(jsonPath("$[1].commentContent").value("수정된 이전 댓글"));
+
+		handleLikeCreatedUseCase.handleCreated(new HandleLikeCommand(
+				UUID.randomUUID(),
+				UUID.fromString(olderUuid),
+				authorUuid
+		));
+		mockMvc.perform(get("/api/planwith-fo-comment/stories/{storyUuid}/comments", storyUuid)
+						.param("sort", "LIKE"))
+				.andExpect(status().isOk())
+				.andExpect(jsonPath("$[0].commentUuid").value(olderUuid))
+				.andExpect(jsonPath("$[0].commentLikeCount").value(1))
+				.andExpect(jsonPath("$[1].commentUuid").value(newerUuid));
+
+		mockMvc.perform(get("/api/planwith-fo-comment/stories/{storyUuid}/comments", storyUuid)
+						.param("sort", "UNKNOWN"))
+				.andExpect(status().isBadRequest())
+				.andExpect(jsonPath("$.code").value("INVALID_REQUEST"));
 	}
 
 	@Test
