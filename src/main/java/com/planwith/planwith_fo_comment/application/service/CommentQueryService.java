@@ -9,6 +9,7 @@ import com.planwith.planwith_fo_comment.application.port.in.GetCommentUseCase;
 import com.planwith.planwith_fo_comment.application.port.in.GetCommentsByStoryUseCase;
 import com.planwith.planwith_fo_comment.application.port.out.CommentQueryPort;
 import com.planwith.planwith_fo_comment.application.query.CommentQueryResult;
+import com.planwith.planwith_fo_comment.application.query.CommentThreadResult;
 import com.planwith.planwith_fo_comment.application.query.GetCommentQuery;
 import com.planwith.planwith_fo_comment.application.query.GetCommentsByStoryQuery;
 import com.planwith.planwith_fo_comment.domain.exception.CommentNotFoundException;
@@ -23,6 +24,7 @@ import lombok.extern.slf4j.Slf4j;
 public class CommentQueryService implements GetCommentUseCase, GetCommentsByStoryUseCase {
 
 	private final CommentQueryPort commentQueryPort;
+	private final CommentThreadAssembler commentThreadAssembler;
 
 	@Override
 	public CommentQueryResult get(GetCommentQuery query) {
@@ -35,11 +37,23 @@ public class CommentQueryService implements GetCommentUseCase, GetCommentsByStor
 	}
 
 	@Override
-	public List<CommentQueryResult> getByStory(GetCommentsByStoryQuery query) {
-		log.debug(
-				"CommentQueryService : getByStory : Story별 댓글 목록 조회 - storyUuid={}",
-				query.storyUuid()
+	public List<CommentThreadResult> getByStory(GetCommentsByStoryQuery query) {
+		log.info(
+				"CommentQueryService : getByStory : Story별 댓글 목록 조회 시작 - storyUuid={}, sort={}",
+				query.storyUuid(),
+				query.sort()
 		);
-		return commentQueryPort.findActiveByStoryUuid(query.storyUuid());
+		List<CommentQueryResult> comments = commentQueryPort.findActiveByStoryUuid(query.storyUuid());
+		List<CommentThreadResult> threads = commentThreadAssembler.assemble(
+				comments,
+				query.sort(),
+				query.viewerMemberUuid()
+		);
+		log.debug(
+				"CommentQueryService : getByStory : Story별 댓글 목록 조회 완료 - storyUuid={}, rootCount={}",
+				query.storyUuid(),
+				threads.size()
+		);
+		return threads;
 	}
 }
