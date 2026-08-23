@@ -60,10 +60,7 @@ public class CommentPersistenceAdapter implements CommentCommandPort, CommentQue
 	@Override
 	public List<CommentQueryResult> findActiveByStoryUuid(UUID storyUuid) {
 		List<StoryCommentJpaEntity> comments = storyCommentJpaRepository
-				.findByStoryUuidAndDeletedAtIsNullAndModerationStatusOrderByCreatedAtAsc(
-						storyUuid,
-						ModerationStatus.VISIBLE
-				);
+				.findVisibleListByStoryUuid(storyUuid, ModerationStatus.VISIBLE);
 		Set<UUID> memberUuids = comments.stream()
 				.map(StoryCommentJpaEntity::getMemberUuid)
 				.collect(Collectors.toSet());
@@ -119,7 +116,8 @@ public class CommentPersistenceAdapter implements CommentCommandPort, CommentQue
 						? null
 						: storyProjection.getStoryStatus().name(),
 				entity.getCreatedAt(),
-				entity.getUpdatedAt()
+				entity.getUpdatedAt(),
+				entity.getDeletedAt() != null
 		);
 	}
 }

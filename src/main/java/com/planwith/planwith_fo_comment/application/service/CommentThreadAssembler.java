@@ -11,7 +11,10 @@ import org.springframework.stereotype.Component;
 import com.planwith.planwith_fo_comment.application.query.CommentMemberResult;
 import com.planwith.planwith_fo_comment.application.query.CommentQueryResult;
 import com.planwith.planwith_fo_comment.application.query.CommentThreadResult;
+import com.planwith.planwith_fo_comment.domain.comment.CommentDeletePolicy;
 import com.planwith.planwith_fo_comment.domain.comment.CommentSort;
+import com.planwith.planwith_fo_comment.domain.comment.StoryComment;
+import com.planwith.planwith_fo_comment.domain.memberprojection.MemberRole;
 
 @Component
 public class CommentThreadAssembler {
@@ -21,10 +24,21 @@ public class CommentThreadAssembler {
 			CommentSort sort,
 			UUID viewerMemberUuid
 	) {
+		return assemble(comments, sort, viewerMemberUuid, MemberRole.USER);
+	}
+
+	public List<CommentThreadResult> assemble(
+			List<CommentQueryResult> comments,
+			CommentSort sort,
+			UUID viewerMemberUuid,
+			MemberRole viewerRole
+	) {
 		CommentSort resolvedSort = sort == null ? CommentSort.LATEST : sort;
+		MemberRole resolvedRole = viewerRole == null ? MemberRole.USER : viewerRole;
 		Comparator<CommentQueryResult> rootComparator = rootComparator(resolvedSort);
 		Map<UUID, List<CommentQueryResult>> repliesByParent = comments.stream()
 				.filter(comment -> comment.parentCommentUuid() != null)
+				.filter(comment -> !comment.deleted())
 				.collect(Collectors.groupingBy(CommentQueryResult::parentCommentUuid));
 
 		return comments.stream()
@@ -33,7 +47,8 @@ public class CommentThreadAssembler {
 				.map(root -> toThread(
 						root,
 						repliesByParent.getOrDefault(root.commentUuid(), List.of()),
-						viewerMemberUuid
+						viewerMemberUuid,
+						resolvedRole
 				))
 				.toList();
 	}
@@ -41,13 +56,23 @@ public class CommentThreadAssembler {
 	private CommentThreadResult toThread(
 			CommentQueryResult comment,
 			List<CommentQueryResult> replies,
-			UUID viewerMemberUuid
+			UUID viewerMemberUuid,
+			MemberRole viewerRole
 	) {
 		List<CommentThreadResult> nestedReplies = replies.stream()
 				.sorted(Comparator.comparing(CommentQueryResult::createdAt))
-				.map(reply -> toThread(reply, List.of(), viewerMemberUuid))
+				.map(reply -> toThread(reply, List.of(), viewerMemberUuid, viewerRole))
 				.toList();
-		boolean owned = viewerMemberUuid != null && viewerMemberUuid.equals(comment.memberUuid());
+		boolean deleted = comment.deleted();
+		boolean canEdit = !deleted
+				&& viewerMemberUuid != null
+				&& viewerMemberUuid.equals(comment.memberUuid());
+		boolean canDelete = !deleted && CommentDeletePolicy.canDelete(
+				comment.memberUuid(),
+				comment.storyOwnerMemberUuid(),
+				viewerMemberUuid,
+				viewerRole
+		);
 		return new CommentThreadResult(
 				comment.commentUuid(),
 				comment.parentCommentUuid(),
@@ -56,13 +81,14 @@ public class CommentThreadAssembler {
 						comment.nickname(),
 						comment.profileImage()
 				),
-				comment.commentContent(),
+				deleted ? StoryComment.DELETED_DISPLAY_CONTENT : comment.commentContent(),
 				comment.likeCount(),
 				comment.createdAt(),
 				comment.updatedAt(),
-				isUpdated(comment),
-				owned,
-				owned,
+				!deleted && isUpdated(comment),
+				canEdit,
+				canDelete,
+				deleted,
 				nestedReplies
 		);
 	}

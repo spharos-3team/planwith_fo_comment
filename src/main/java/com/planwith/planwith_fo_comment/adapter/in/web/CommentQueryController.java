@@ -19,6 +19,7 @@ import com.planwith.planwith_fo_comment.application.port.in.GetCommentsByStoryUs
 import com.planwith.planwith_fo_comment.application.query.GetCommentQuery;
 import com.planwith.planwith_fo_comment.application.query.GetCommentsByStoryQuery;
 import com.planwith.planwith_fo_comment.domain.comment.CommentSort;
+import com.planwith.planwith_fo_comment.domain.memberprojection.MemberRole;
 
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.tags.Tag;
@@ -42,7 +43,8 @@ public class CommentQueryController {
 	public ResponseEntity<List<CommentThreadResponse>> getCommentsByStory(
 			@PathVariable UUID storyUuid,
 			@RequestParam(defaultValue = "LATEST") CommentSort sort,
-			@RequestHeader(value = "X-Member-Uuid", required = false) UUID memberUuid
+			@RequestHeader(value = "X-Member-Uuid", required = false) UUID memberUuid,
+			@RequestHeader(value = "X-Member-Role", required = false) String memberRole
 	) {
 		log.info("CommentQueryController : GET getCommentsByStory : Story별 댓글 목록 조회 요청");
 		log.debug(
@@ -51,7 +53,12 @@ public class CommentQueryController {
 				sort
 		);
 		List<CommentThreadResponse> responses = getCommentsByStoryUseCase
-				.getByStory(new GetCommentsByStoryQuery(storyUuid, sort, memberUuid))
+				.getByStory(new GetCommentsByStoryQuery(
+						storyUuid,
+						sort,
+						memberUuid,
+						MemberRole.from(memberRole)
+				))
 				.stream()
 				.map(CommentThreadResponse::from)
 				.toList();

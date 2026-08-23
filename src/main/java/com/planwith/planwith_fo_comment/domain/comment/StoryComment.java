@@ -11,6 +11,7 @@ import com.planwith.planwith_fo_comment.domain.exception.InvalidReplyException;
 public class StoryComment {
 
 	public static final int MAX_CONTENT_LENGTH = 1000;
+	public static final String DELETED_DISPLAY_CONTENT = "삭제된 댓글입니다.";
 
 	private Long commentId;
 	private final UUID commentUuid;
@@ -136,9 +137,8 @@ public class StoryComment {
 		this.updatedAt = Instant.now();
 	}
 
-	public void delete(UUID requesterMemberUuid) {
+	public void delete() {
 		assertNotDeleted();
-		assertOwnedBy(requesterMemberUuid);
 		Instant now = Instant.now();
 		this.deletedAt = now;
 		this.updatedAt = now;

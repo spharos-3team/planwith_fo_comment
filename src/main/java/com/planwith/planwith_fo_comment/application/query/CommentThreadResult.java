@@ -15,6 +15,7 @@ public record CommentThreadResult(
 		boolean isUpdated,
 		boolean canEdit,
 		boolean canDelete,
+		boolean deleted,
 		List<CommentThreadResult> replies
 ) {
 }
