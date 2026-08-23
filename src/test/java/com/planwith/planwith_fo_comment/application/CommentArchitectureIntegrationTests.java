@@ -15,6 +15,7 @@ import org.springframework.transaction.annotation.Transactional;
 import com.planwith.planwith_fo_comment.application.command.CreateCommentCommand;
 import com.planwith.planwith_fo_comment.application.command.DeleteCommentCommand;
 import com.planwith.planwith_fo_comment.application.command.HandleLikeCommand;
+import com.planwith.planwith_fo_comment.application.command.HandleReportCommand;
 import com.planwith.planwith_fo_comment.application.command.MarkStoryDeletedCommand;
 import com.planwith.planwith_fo_comment.application.command.SyncMemberProjectionCommand;
 import com.planwith.planwith_fo_comment.application.command.SyncStoryProjectionCommand;
@@ -24,6 +25,7 @@ import com.planwith.planwith_fo_comment.application.port.in.DeleteCommentUseCase
 import com.planwith.planwith_fo_comment.application.port.in.GetCommentUseCase;
 import com.planwith.planwith_fo_comment.application.port.in.GetCommentsByStoryUseCase;
 import com.planwith.planwith_fo_comment.application.port.in.HandleCommentLikedUseCase;
+import com.planwith.planwith_fo_comment.application.port.in.HandleCommentReportedUseCase;
 import com.planwith.planwith_fo_comment.application.port.in.HandleCommentUnlikedUseCase;
 import com.planwith.planwith_fo_comment.application.port.in.MarkStoryDeletedUseCase;
 import com.planwith.planwith_fo_comment.application.port.in.SyncMemberProjectionUseCase;
@@ -85,6 +87,9 @@ class CommentArchitectureIntegrationTests {
 
 	@Autowired
 	private HandleCommentUnlikedUseCase handleCommentUnlikedUseCase;
+
+	@Autowired
+	private HandleCommentReportedUseCase handleCommentReportedUseCase;
 
 	@Autowired
 	private CommentOutboxPort commentOutboxPort;
@@ -392,6 +397,38 @@ class CommentArchitectureIntegrationTests {
 		UUID missingCommentUuid = UUID.randomUUID();
 		handleCommentLikedUseCase.handleLiked(new HandleLikeCommand(UUID.randomUUID(), missingCommentUuid, memberUuid));
 		assertThat(getCommentUseCase.get(new GetCommentQuery(created.commentUuid())).likeCount()).isZero();
+	}
+
+	@Test
+	void commentReportedEventUpdatesReportCountProjection() {
+		UUID memberUuid = UUID.randomUUID();
+		UUID storyUuid = UUID.randomUUID();
+		enableStory(storyUuid);
+		CommentQueryResult created = createCommentUseCase.create(
+				new CreateCommentCommand(storyUuid, memberUuid, "신고 대상")
+		);
+		UUID reportUuid = UUID.randomUUID();
+
+		handleCommentReportedUseCase.handleReported(
+				new HandleReportCommand(reportUuid, created.commentUuid(), memberUuid)
+		);
+		handleCommentReportedUseCase.handleReported(
+				new HandleReportCommand(reportUuid, created.commentUuid(), memberUuid)
+		);
+		CommentQueryResult reported = getCommentUseCase.get(new GetCommentQuery(created.commentUuid()));
+		assertThat(reported.reportCount()).isEqualTo(1);
+		assertThat(reported.updatedAt()).isEqualTo(reported.createdAt());
+
+		handleCommentReportedUseCase.handleReported(
+				new HandleReportCommand(UUID.randomUUID(), created.commentUuid(), memberUuid)
+		);
+		assertThat(getCommentUseCase.get(new GetCommentQuery(created.commentUuid())).reportCount()).isEqualTo(2);
+
+		UUID missingCommentUuid = UUID.randomUUID();
+		handleCommentReportedUseCase.handleReported(
+				new HandleReportCommand(UUID.randomUUID(), missingCommentUuid, memberUuid)
+		);
+		assertThat(getCommentUseCase.get(new GetCommentQuery(created.commentUuid())).reportCount()).isEqualTo(2);
 	}
 
 	@Test

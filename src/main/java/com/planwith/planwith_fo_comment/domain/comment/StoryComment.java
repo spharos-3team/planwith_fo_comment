@@ -169,6 +169,11 @@ public class StoryComment {
 		}
 	}
 
+	public void increaseReportCount() {
+		assertNotDeleted();
+		this.reportCount += 1;
+	}
+
 	public void assertCanReceiveReply() {
 		assertNotDeleted();
 		if (!isRoot()) {
