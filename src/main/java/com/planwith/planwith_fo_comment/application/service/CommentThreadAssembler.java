@@ -19,6 +19,7 @@ import com.planwith.planwith_fo_comment.domain.memberprojection.MemberRole;
 @Component
 public class CommentThreadAssembler {
 
+	@SuppressWarnings("null")
 	public List<CommentThreadResult> assemble(
 			List<CommentQueryResult> comments,
 			CommentSort sort,
@@ -53,6 +54,7 @@ public class CommentThreadAssembler {
 				.toList();
 	}
 
+	@SuppressWarnings("null")
 	private CommentThreadResult toThread(
 			CommentQueryResult comment,
 			List<CommentQueryResult> replies,
@@ -99,6 +101,7 @@ public class CommentThreadAssembler {
 				&& comment.updatedAt().isAfter(comment.createdAt());
 	}
 
+	@SuppressWarnings("null")
 	private Comparator<CommentQueryResult> rootComparator(CommentSort sort) {
 		if (sort == CommentSort.LIKE) {
 			return Comparator.comparingLong(CommentQueryResult::likeCount).reversed()

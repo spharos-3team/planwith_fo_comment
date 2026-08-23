@@ -14,6 +14,7 @@ import com.planwith.planwith_fo_comment.domain.comment.CommentSort;
 import com.planwith.planwith_fo_comment.domain.comment.StoryComment;
 import com.planwith.planwith_fo_comment.domain.memberprojection.MemberRole;
 
+@SuppressWarnings("null")
 class CommentThreadAssemblerTest {
 
 	private final CommentThreadAssembler assembler = new CommentThreadAssembler();

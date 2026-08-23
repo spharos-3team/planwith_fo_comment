@@ -58,6 +58,7 @@ public class CommentPersistenceAdapter implements CommentCommandPort, CommentQue
 	}
 
 	@Override
+	@SuppressWarnings("null")
 	public List<CommentQueryResult> findActiveByStoryUuid(UUID storyUuid) {
 		List<StoryCommentJpaEntity> comments = storyCommentJpaRepository
 				.findVisibleListByStoryUuid(storyUuid, ModerationStatus.VISIBLE);
@@ -74,6 +75,7 @@ public class CommentPersistenceAdapter implements CommentCommandPort, CommentQue
 				.toList();
 	}
 
+	@SuppressWarnings("null")
 	private Map<UUID, CommentMemberProjectionJpaEntity> findMemberProjectionMap(Set<UUID> memberUuids) {
 		if (memberUuids.isEmpty()) {
 			return Map.of();
@@ -82,6 +84,7 @@ public class CommentPersistenceAdapter implements CommentCommandPort, CommentQue
 				.collect(Collectors.toMap(CommentMemberProjectionJpaEntity::getMemberUuid, Function.identity()));
 	}
 
+	@SuppressWarnings("null")
 	private Map<UUID, CommentStoryProjectionJpaEntity> findStoryProjectionMap(Set<UUID> storyUuids) {
 		if (storyUuids.isEmpty()) {
 			return Map.of();

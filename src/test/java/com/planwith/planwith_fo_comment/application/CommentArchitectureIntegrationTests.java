@@ -56,6 +56,7 @@ import com.planwith.planwith_fo_comment.domain.outbox.OutboxStatus;
 @ActiveProfiles("test")
 @SpringBootTest
 @Transactional
+@SuppressWarnings("null")
 class CommentArchitectureIntegrationTests {
 
 	@Autowired

@@ -103,6 +103,7 @@ public class GlobalExceptionHandler {
 	}
 
 	@ExceptionHandler(MethodArgumentNotValidException.class)
+	@SuppressWarnings("null")
 	public ResponseEntity<ApiErrorResponse> handleValidation(MethodArgumentNotValidException exception) {
 		String message = exception.getBindingResult()
 				.getFieldErrors()
