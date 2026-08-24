@@ -49,7 +49,7 @@ public class CommentCommandController {
 
 	// 댓글 작성
 	@PostMapping
-	@Operation(summary = "댓글 작성", description = "댓글 또는 대댓글을 Comment DB에 저장한 뒤 생성된 댓글을 즉시 반환한다.")
+	@Operation(summary = "댓글 작성", description = "댓글 또는 대댓글을 저장한다. 대댓글에 답글하면 최상위 댓글 아래의 2단계 평면형 답글로 저장한다.")
 	public ResponseEntity<CommentResponse> createComment(
 			@RequestHeader(value = "X-Member-Uuid", required = false) UUID memberUuid,
 			@Valid @RequestBody CreateCommentRequest request

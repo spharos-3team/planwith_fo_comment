@@ -45,13 +45,15 @@ class StoryCommentTest {
 	}
 
 	@Test
-	void rejectNestedReplyBeyondOneLevel() {
+	void flattenReplyToReplyUnderRootComment() {
 		StoryComment parent = StoryComment.createRoot(UUID.randomUUID(), UUID.randomUUID(), "부모 댓글");
 		StoryComment reply = StoryComment.createReply(parent, UUID.randomUUID(), "대댓글");
 
-		assertThatThrownBy(() -> StoryComment.createReply(reply, UUID.randomUUID(), "중첩 대댓글"))
-				.isInstanceOf(InvalidReplyException.class)
-				.hasMessage("대댓글에는 다시 대댓글을 작성할 수 없습니다.");
+		StoryComment flattenedReply = StoryComment.createReply(reply, UUID.randomUUID(), "@reply 댓글 감사합니다!");
+
+		assertThat(flattenedReply.getParentCommentUuid()).isEqualTo(parent.getCommentUuid());
+		assertThat(flattenedReply.getParentCommentUuid()).isNotEqualTo(reply.getCommentUuid());
+		assertThat(flattenedReply.getStoryUuid()).isEqualTo(parent.getStoryUuid());
 	}
 
 	@Test

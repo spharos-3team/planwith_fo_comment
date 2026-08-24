@@ -12,7 +12,6 @@ import jakarta.persistence.EnumType;
 import jakarta.persistence.Enumerated;
 import jakarta.persistence.Id;
 import jakarta.persistence.Index;
-import jakarta.persistence.Lob;
 import jakarta.persistence.Table;
 import lombok.AccessLevel;
 import lombok.AllArgsConstructor;
@@ -46,8 +45,7 @@ public class CommentOutboxJpaEntity {
 	@Column(name = "aggregate_uuid", columnDefinition = "char(36)", nullable = false)
 	private UUID aggregateUuid;
 
-	@Lob
-	@Column(name = "payload", nullable = false)
+	@Column(name = "payload", columnDefinition = "text", nullable = false)
 	private String payload;
 
 	@Enumerated(EnumType.STRING)

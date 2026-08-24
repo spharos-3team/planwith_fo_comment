@@ -13,7 +13,7 @@ public record CreateCommentRequest(
 		@NotNull(message = "storyUuid는 필수입니다.")
 		UUID storyUuid,
 
-		@Schema(description = "부모 댓글 UUID. 없으면 일반 댓글, 있으면 1단계 대댓글", example = "22222222-2222-2222-2222-222222222222")
+		@Schema(description = "답글 대상 댓글 UUID. 대댓글 UUID를 전달해도 실제 부모는 최상위 댓글로 정규화된다. 없으면 일반 댓글", example = "22222222-2222-2222-2222-222222222222")
 		UUID parentCommentUuid,
 
 		@Schema(description = "댓글 내용", example = "좋은 여행이네요!")

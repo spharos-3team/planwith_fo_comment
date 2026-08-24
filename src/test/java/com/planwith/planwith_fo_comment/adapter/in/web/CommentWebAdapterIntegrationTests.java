@@ -134,7 +134,7 @@ class CommentWebAdapterIntegrationTests {
 				.get("commentUuid")
 				.asText();
 
-		mockMvc.perform(post("/api/planwith-fo-comment/comments")
+		MvcResult reply = mockMvc.perform(post("/api/planwith-fo-comment/comments")
 						.header("X-Member-Uuid", memberUuid)
 						.contentType(MediaType.APPLICATION_JSON)
 						.content("""
@@ -148,7 +148,26 @@ class CommentWebAdapterIntegrationTests {
 				.andExpect(jsonPath("$.parentCommentUuid").value(parentUuid))
 				.andExpect(jsonPath("$.commentContent").value("대댓글"))
 				.andExpect(jsonPath("$.likeCount").value(0))
-				.andExpect(jsonPath("$.createdAt").exists());
+				.andExpect(jsonPath("$.createdAt").exists())
+				.andReturn();
+
+		String replyUuid = objectMapper.readTree(reply.getResponse().getContentAsString())
+				.get("commentUuid")
+				.asText();
+
+		mockMvc.perform(post("/api/planwith-fo-comment/comments")
+						.header("X-Member-Uuid", memberUuid)
+						.contentType(MediaType.APPLICATION_JSON)
+						.content("""
+								{
+								  "storyUuid": "%s",
+								  "parentCommentUuid": "%s",
+								  "commentContent": "@reply 댓글 감사합니다!"
+								}
+								""".formatted(storyUuid, replyUuid)))
+				.andExpect(status().isCreated())
+				.andExpect(jsonPath("$.parentCommentUuid").value(parentUuid))
+				.andExpect(jsonPath("$.commentContent").value("@reply 댓글 감사합니다!"));
 	}
 
 	@Test

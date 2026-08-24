@@ -114,11 +114,24 @@ public class CommentCommandService implements CreateCommentUseCase, UpdateCommen
 			return StoryComment.createRoot(command.storyUuid(), command.memberUuid(), command.commentContent());
 		}
 
-		StoryComment parent = findActiveComment(command.parentCommentUuid());
-		if (!parent.getStoryUuid().equals(command.storyUuid())) {
+		StoryComment replyTarget = findActiveComment(command.parentCommentUuid());
+		if (!replyTarget.getStoryUuid().equals(command.storyUuid())) {
 			throw new CommentNotFoundException(command.parentCommentUuid());
 		}
-		return StoryComment.createReply(parent, command.memberUuid(), command.commentContent());
+		assertThreadRootCanReceiveReply(replyTarget, command.storyUuid());
+		return StoryComment.createReply(replyTarget, command.memberUuid(), command.commentContent());
+	}
+
+	private void assertThreadRootCanReceiveReply(StoryComment replyTarget, UUID storyUuid) {
+		if (replyTarget.isRoot()) {
+			return;
+		}
+
+		StoryComment threadRoot = findActiveComment(replyTarget.getParentCommentUuid());
+		if (!threadRoot.isRoot() || !threadRoot.getStoryUuid().equals(storyUuid)) {
+			throw new CommentNotFoundException(replyTarget.getParentCommentUuid());
+		}
+		threadRoot.assertCanReceiveReply();
 	}
 
 	private StoryComment findActiveComment(UUID commentUuid) {
