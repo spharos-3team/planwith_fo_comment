@@ -18,6 +18,7 @@ import com.planwith.planwith_fo_comment.adapter.out.persistence.storyprojection.
 import com.planwith.planwith_fo_comment.application.port.out.CommentCommandPort;
 import com.planwith.planwith_fo_comment.application.port.out.CommentQueryPort;
 import com.planwith.planwith_fo_comment.application.query.CommentQueryResult;
+import com.planwith.planwith_fo_comment.application.query.CommentReportContextResult;
 import com.planwith.planwith_fo_comment.application.query.ManagedCommentResult;
 import com.planwith.planwith_fo_comment.domain.comment.ModerationStatus;
 import com.planwith.planwith_fo_comment.domain.comment.StoryComment;
@@ -62,6 +63,16 @@ public class CommentPersistenceAdapter implements CommentCommandPort, CommentQue
 						entity,
 						findMemberProjectionMap(Set.of(entity.getMemberUuid())),
 						findStoryProjectionMap(Set.of(entity.getStoryUuid()))
+				));
+	}
+
+	@Override
+	public Optional<CommentReportContextResult> findReportContextByUuid(UUID commentUuid) {
+		return storyCommentJpaRepository.findByCommentUuid(commentUuid)
+				.map(entity -> new CommentReportContextResult(
+						entity.getCommentUuid(),
+						entity.getMemberUuid(),
+						entity.getDeletedAt() == null
 				));
 	}
 

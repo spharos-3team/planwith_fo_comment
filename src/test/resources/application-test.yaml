@@ -19,6 +19,8 @@ eureka:
     enabled: false
 
 app:
+  gateway:
+    auth-header-mapping-enabled: false
   kafka:
     enabled: false
   outbox:

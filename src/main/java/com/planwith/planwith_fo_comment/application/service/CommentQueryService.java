@@ -1,15 +1,18 @@
 package com.planwith.planwith_fo_comment.application.service;
 
 import java.util.List;
+import java.util.UUID;
 
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 import com.planwith.planwith_fo_comment.application.port.in.GetCommentUseCase;
+import com.planwith.planwith_fo_comment.application.port.in.GetCommentReportContextUseCase;
 import com.planwith.planwith_fo_comment.application.port.in.GetCommentsByStoryUseCase;
 import com.planwith.planwith_fo_comment.application.port.in.GetManagedCommentsUseCase;
 import com.planwith.planwith_fo_comment.application.port.out.CommentQueryPort;
 import com.planwith.planwith_fo_comment.application.query.CommentQueryResult;
+import com.planwith.planwith_fo_comment.application.query.CommentReportContextResult;
 import com.planwith.planwith_fo_comment.application.query.CommentThreadResult;
 import com.planwith.planwith_fo_comment.application.query.GetCommentQuery;
 import com.planwith.planwith_fo_comment.application.query.GetCommentsByStoryQuery;
@@ -24,7 +27,8 @@ import lombok.extern.slf4j.Slf4j;
 @Service
 @RequiredArgsConstructor
 @Transactional(readOnly = true)
-public class CommentQueryService implements GetCommentUseCase, GetCommentsByStoryUseCase, GetManagedCommentsUseCase {
+public class CommentQueryService implements GetCommentUseCase, GetCommentsByStoryUseCase, GetManagedCommentsUseCase,
+		GetCommentReportContextUseCase {
 
 	private final CommentQueryPort commentQueryPort;
 	private final CommentThreadAssembler commentThreadAssembler;
@@ -38,6 +42,13 @@ public class CommentQueryService implements GetCommentUseCase, GetCommentsByStor
 		);
 		return commentQueryPort.findActiveByUuid(query.commentUuid())
 				.orElseThrow(() -> new CommentNotFoundException(query.commentUuid()));
+	}
+
+	@Override
+	public CommentReportContextResult getReportContext(UUID commentUuid) {
+		log.debug("CommentQueryService : getReportContext : 신고 대상 댓글 조회 - commentUuid={}", commentUuid);
+		return commentQueryPort.findReportContextByUuid(commentUuid)
+				.orElseThrow(() -> new CommentNotFoundException(commentUuid));
 	}
 
 	@Override

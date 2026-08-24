@@ -66,6 +66,7 @@ app:
     # Relative "/" avoids embedding a host IP in OpenAPI servers.
     # Set to the public Gateway URL only when clients must see an absolute base (no LAN IP in git).
     public-url: ${GATEWAY_PUBLIC_URL:/}
+    auth-header-mapping-enabled: ${COMMENT_GATEWAY_AUTH_ENABLED:true}
   auth:
     id: ${LOGIN_ID:test-001}
     pw: ${LOGIN_PASSWORD:1234}
