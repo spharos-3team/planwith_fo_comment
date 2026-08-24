@@ -40,3 +40,9 @@ out/
 .env
 .env.local
 .env.*.local
+
+# Local Spring profile configuration (may contain developer credentials) ###
+**/application-local.yaml
+**/application-local.yml
+**/application.local.yaml
+**/application.local.yml
