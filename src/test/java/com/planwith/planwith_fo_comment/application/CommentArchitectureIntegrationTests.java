@@ -50,7 +50,6 @@ import com.planwith.planwith_fo_comment.domain.exception.CommentDeleteForbiddenE
 import com.planwith.planwith_fo_comment.domain.exception.CommentNotAllowedException;
 import com.planwith.planwith_fo_comment.domain.exception.CommentNotFoundException;
 import com.planwith.planwith_fo_comment.domain.exception.CommentOwnerMismatchException;
-import com.planwith.planwith_fo_comment.domain.exception.InvalidReplyException;
 import com.planwith.planwith_fo_comment.domain.exception.LoginRequiredException;
 import com.planwith.planwith_fo_comment.domain.exception.StoryDeletedException;
 import com.planwith.planwith_fo_comment.domain.exception.StoryNotFoundException;
@@ -361,7 +360,7 @@ class CommentArchitectureIntegrationTests {
 	}
 
 	@Test
-	void createOneLevelReplyAndRejectNestedReply() {
+	void createRepliesAsFlatTwoLevelThread() {
 		UUID storyUuid = UUID.randomUUID();
 		UUID memberUuid = UUID.randomUUID();
 		enableStory(storyUuid);
@@ -376,9 +375,22 @@ class CommentArchitectureIntegrationTests {
 		assertThat(parent.parentCommentUuid()).isNull();
 		assertThat(reply.parentCommentUuid()).isEqualTo(parent.commentUuid());
 
-		assertThatThrownBy(() -> createCommentUseCase.create(
-				new CreateCommentCommand(storyUuid, memberUuid, "중첩 대댓글", reply.commentUuid())
-		)).isInstanceOf(InvalidReplyException.class);
+		CommentQueryResult replyToReply = createCommentUseCase.create(
+				new CreateCommentCommand(storyUuid, memberUuid, "@reply 댓글 감사합니다!", reply.commentUuid())
+		);
+
+		assertThat(replyToReply.parentCommentUuid()).isEqualTo(parent.commentUuid());
+		assertThat(replyToReply.parentCommentUuid()).isNotEqualTo(reply.commentUuid());
+
+		List<CommentThreadResult> thread = getCommentsByStoryUseCase.getByStory(
+				new GetCommentsByStoryQuery(storyUuid)
+		);
+		assertThat(thread).hasSize(1);
+		assertThat(thread.get(0).replies())
+				.extracting(CommentThreadResult::commentUuid)
+				.containsExactly(reply.commentUuid(), replyToReply.commentUuid());
+		assertThat(thread.get(0).replies())
+				.allMatch(flatReply -> flatReply.replies().isEmpty());
 	}
 
 	@Test

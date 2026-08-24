@@ -62,9 +62,14 @@ public class StoryComment {
 		return createNew(storyUuid, memberUuid, null, commentContent);
 	}
 
-	public static StoryComment createReply(StoryComment parent, UUID memberUuid, String commentContent) {
-		parent.assertCanReceiveReply();
-		return createNew(parent.getStoryUuid(), memberUuid, parent.getCommentUuid(), commentContent);
+	public static StoryComment createReply(StoryComment replyTarget, UUID memberUuid, String commentContent) {
+		replyTarget.assertCanReceiveReply();
+		return createNew(
+				replyTarget.getStoryUuid(),
+				memberUuid,
+				replyTarget.getThreadRootCommentUuid(),
+				commentContent
+		);
 	}
 
 	private static StoryComment createNew(
@@ -180,12 +185,13 @@ public class StoryComment {
 
 	public void assertCanReceiveReply() {
 		assertNotDeleted();
-		if (!isRoot()) {
-			throw new InvalidReplyException("대댓글에는 다시 대댓글을 작성할 수 없습니다.");
-		}
 		if (!isVisible()) {
 			throw new InvalidReplyException("숨김 처리된 댓글에는 대댓글을 작성할 수 없습니다.");
 		}
+	}
+
+	public UUID getThreadRootCommentUuid() {
+		return isRoot() ? commentUuid : parentCommentUuid;
 	}
 
 	public boolean isRoot() {
