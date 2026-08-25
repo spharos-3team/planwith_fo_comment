@@ -52,8 +52,8 @@ public class CommentQueryController {
 	public ResponseEntity<List<CommentThreadResponse>> getCommentsByStory(
 			@PathVariable UUID storyUuid,
 			@RequestParam(defaultValue = "LATEST") CommentSort sort,
-			@RequestHeader(value = "X-Member-Uuid", required = false) UUID memberUuid,
-			@RequestHeader(value = "X-Member-Role", required = false) String memberRole
+			@RequestHeader(value = "X-Auth-User-Id", required = false) UUID memberUuid,
+			@RequestHeader(value = "X-Auth-Roles", required = false) String memberRole
 	) {
 		log.info("CommentQueryController : GET getCommentsByStory : Story별 댓글 목록 조회 요청");
 		log.debug(
@@ -78,8 +78,8 @@ public class CommentQueryController {
 	@Operation(summary = "숨김 댓글 관리 조회", description = "Story 작성자 또는 ADMIN이 숨김 댓글을 신고 횟수 내림차순으로 조회합니다.")
 	public ResponseEntity<List<ManagedCommentResponse>> getManagedComments(
 			@PathVariable UUID storyUuid,
-			@RequestHeader(value = "X-Member-Uuid", required = false) UUID memberUuid,
-			@RequestHeader(value = "X-Member-Role", required = false) String memberRole
+			@RequestHeader(value = "X-Auth-User-Id", required = false) UUID memberUuid,
+			@RequestHeader(value = "X-Auth-Roles", required = false) String memberRole
 	) {
 		List<ManagedCommentResult> results = getManagedCommentsUseCase.getManagedComments(
 				new GetManagedCommentsQuery(storyUuid, memberUuid, MemberRole.from(memberRole))
@@ -96,8 +96,8 @@ public class CommentQueryController {
 	@Operation(summary = "댓글 상세 조회")
 	public ResponseEntity<CommentResponse> getComment(
 			@PathVariable UUID commentUuid,
-			@RequestHeader(value = "X-Member-Uuid", required = false) UUID memberUuid,
-			@RequestHeader(value = "X-Member-Role", required = false) String memberRole
+			@RequestHeader(value = "X-Auth-User-Id", required = false) UUID memberUuid,
+			@RequestHeader(value = "X-Auth-Roles", required = false) String memberRole
 	) {
 		log.info("CommentQueryController : GET getComment : 댓글 상세 조회 요청");
 		CommentQueryResult result = getCommentUseCase.get(new GetCommentQuery(commentUuid));

@@ -62,7 +62,7 @@ class CommentWebAdapterIntegrationTests {
 		enableStory(storyUuid);
 
 		MvcResult created = mockMvc.perform(post("/api/planwith-fo-comment/comments")
-						.header("X-Member-Uuid", memberUuid)
+						.header("X-Auth-User-Id", memberUuid)
 						.contentType(MediaType.APPLICATION_JSON)
 						.content("""
 								{
@@ -92,7 +92,7 @@ class CommentWebAdapterIntegrationTests {
 
 		Thread.sleep(10);
 		mockMvc.perform(patch("/api/planwith-fo-comment/comments/{commentUuid}", commentUuid)
-						.header("X-Member-Uuid", memberUuid)
+						.header("X-Auth-User-Id", memberUuid)
 						.contentType(MediaType.APPLICATION_JSON)
 						.content("""
 								{
@@ -104,7 +104,7 @@ class CommentWebAdapterIntegrationTests {
 				.andExpect(jsonPath("$.isUpdated").value(true));
 
 		mockMvc.perform(delete("/api/planwith-fo-comment/comments/{commentUuid}", commentUuid)
-						.header("X-Member-Uuid", memberUuid))
+						.header("X-Auth-User-Id", memberUuid))
 				.andExpect(status().isNoContent());
 
 		mockMvc.perform(get("/api/planwith-fo-comment/comments/{commentUuid}", commentUuid))
@@ -119,7 +119,7 @@ class CommentWebAdapterIntegrationTests {
 		enableStory(storyUuid);
 
 		MvcResult parent = mockMvc.perform(post("/api/planwith-fo-comment/comments")
-						.header("X-Member-Uuid", memberUuid)
+						.header("X-Auth-User-Id", memberUuid)
 						.contentType(MediaType.APPLICATION_JSON)
 						.content("""
 								{
@@ -135,7 +135,7 @@ class CommentWebAdapterIntegrationTests {
 				.asText();
 
 		MvcResult reply = mockMvc.perform(post("/api/planwith-fo-comment/comments")
-						.header("X-Member-Uuid", memberUuid)
+						.header("X-Auth-User-Id", memberUuid)
 						.contentType(MediaType.APPLICATION_JSON)
 						.content("""
 								{
@@ -156,7 +156,7 @@ class CommentWebAdapterIntegrationTests {
 				.asText();
 
 		mockMvc.perform(post("/api/planwith-fo-comment/comments")
-						.header("X-Member-Uuid", memberUuid)
+						.header("X-Auth-User-Id", memberUuid)
 						.contentType(MediaType.APPLICATION_JSON)
 						.content("""
 								{
@@ -183,7 +183,7 @@ class CommentWebAdapterIntegrationTests {
 		));
 
 		MvcResult created = mockMvc.perform(post("/api/planwith-fo-comment/comments")
-						.header("X-Member-Uuid", memberUuid)
+						.header("X-Auth-User-Id", memberUuid)
 						.contentType(MediaType.APPLICATION_JSON)
 						.content("""
 								{
@@ -220,7 +220,7 @@ class CommentWebAdapterIntegrationTests {
 		enableStory(storyUuid);
 
 		mockMvc.perform(post("/api/planwith-fo-comment/comments")
-						.header("X-Member-Uuid", UUID.randomUUID())
+						.header("X-Auth-User-Id", UUID.randomUUID())
 						.contentType(MediaType.APPLICATION_JSON)
 						.content("""
 								{
@@ -277,13 +277,13 @@ class CommentWebAdapterIntegrationTests {
 				.andExpect(jsonPath("$[0].canDelete").value(false));
 
 		mockMvc.perform(get("/api/planwith-fo-comment/stories/{storyUuid}/comments", storyUuid)
-						.header("X-Member-Uuid", otherMemberUuid))
+						.header("X-Auth-User-Id", otherMemberUuid))
 				.andExpect(status().isOk())
 				.andExpect(jsonPath("$[0].canEdit").value(false))
 				.andExpect(jsonPath("$[0].canDelete").value(false));
 
 		mockMvc.perform(get("/api/planwith-fo-comment/stories/{storyUuid}/comments", storyUuid)
-						.header("X-Member-Uuid", authorUuid))
+						.header("X-Auth-User-Id", authorUuid))
 				.andExpect(status().isOk())
 				.andExpect(jsonPath("$[0].canEdit").value(true))
 				.andExpect(jsonPath("$[0].canDelete").value(true));
@@ -294,20 +294,20 @@ class CommentWebAdapterIntegrationTests {
 				.andExpect(jsonPath("$.canDelete").value(false));
 
 		mockMvc.perform(get("/api/planwith-fo-comment/comments/{commentUuid}", commentUuid)
-						.header("X-Member-Uuid", authorUuid))
+						.header("X-Auth-User-Id", authorUuid))
 				.andExpect(status().isOk())
 				.andExpect(jsonPath("$.canEdit").value(true))
 				.andExpect(jsonPath("$.canDelete").value(true));
 
 		mockMvc.perform(get("/api/planwith-fo-comment/comments/{commentUuid}", commentUuid)
-						.header("X-Member-Uuid", storyOwnerUuid))
+						.header("X-Auth-User-Id", storyOwnerUuid))
 				.andExpect(status().isOk())
 				.andExpect(jsonPath("$.canEdit").value(false))
 				.andExpect(jsonPath("$.canDelete").value(true));
 
 		mockMvc.perform(get("/api/planwith-fo-comment/comments/{commentUuid}", commentUuid)
-						.header("X-Member-Uuid", otherMemberUuid)
-						.header("X-Member-Role", "ADMIN"))
+						.header("X-Auth-User-Id", otherMemberUuid)
+						.header("X-Auth-Roles", "ADMIN"))
 				.andExpect(status().isOk())
 				.andExpect(jsonPath("$.canEdit").value(false))
 				.andExpect(jsonPath("$.canDelete").value(true));
@@ -327,7 +327,7 @@ class CommentWebAdapterIntegrationTests {
 		));
 
 		MvcResult older = mockMvc.perform(post("/api/planwith-fo-comment/comments")
-						.header("X-Member-Uuid", authorUuid)
+						.header("X-Auth-User-Id", authorUuid)
 						.contentType(MediaType.APPLICATION_JSON)
 						.content("""
 								{
@@ -343,7 +343,7 @@ class CommentWebAdapterIntegrationTests {
 		Thread.sleep(10);
 
 		MvcResult newer = mockMvc.perform(post("/api/planwith-fo-comment/comments")
-						.header("X-Member-Uuid", otherUuid)
+						.header("X-Auth-User-Id", otherUuid)
 						.contentType(MediaType.APPLICATION_JSON)
 						.content("""
 								{
@@ -358,7 +358,7 @@ class CommentWebAdapterIntegrationTests {
 				.asText();
 
 		mockMvc.perform(post("/api/planwith-fo-comment/comments")
-						.header("X-Member-Uuid", authorUuid)
+						.header("X-Auth-User-Id", authorUuid)
 						.contentType(MediaType.APPLICATION_JSON)
 						.content("""
 								{
@@ -371,7 +371,7 @@ class CommentWebAdapterIntegrationTests {
 
 		mockMvc.perform(get("/api/planwith-fo-comment/stories/{storyUuid}/comments", storyUuid)
 						.param("sort", "LATEST")
-						.header("X-Member-Uuid", authorUuid))
+						.header("X-Auth-User-Id", authorUuid))
 				.andExpect(status().isOk())
 				.andExpect(jsonPath("$[0].commentUuid").value(newerUuid))
 				.andExpect(jsonPath("$[1].commentUuid").value(olderUuid))
@@ -387,7 +387,7 @@ class CommentWebAdapterIntegrationTests {
 
 		Thread.sleep(10);
 		mockMvc.perform(patch("/api/planwith-fo-comment/comments/{commentUuid}", olderUuid)
-						.header("X-Member-Uuid", authorUuid)
+						.header("X-Auth-User-Id", authorUuid)
 						.contentType(MediaType.APPLICATION_JSON)
 						.content("""
 								{
@@ -398,7 +398,7 @@ class CommentWebAdapterIntegrationTests {
 
 		mockMvc.perform(get("/api/planwith-fo-comment/stories/{storyUuid}/comments", storyUuid)
 						.param("sort", "LATEST")
-						.header("X-Member-Uuid", authorUuid))
+						.header("X-Auth-User-Id", authorUuid))
 				.andExpect(status().isOk())
 				.andExpect(jsonPath("$[1].isUpdated").value(true))
 				.andExpect(jsonPath("$[1].commentContent").value("수정된 이전 댓글"));
@@ -427,7 +427,7 @@ class CommentWebAdapterIntegrationTests {
 		UUID missingStoryUuid = UUID.randomUUID();
 
 		mockMvc.perform(post("/api/planwith-fo-comment/comments")
-						.header("X-Member-Uuid", memberUuid)
+						.header("X-Auth-User-Id", memberUuid)
 						.contentType(MediaType.APPLICATION_JSON)
 						.content("""
 								{
@@ -447,7 +447,7 @@ class CommentWebAdapterIntegrationTests {
 				1L
 		));
 		mockMvc.perform(post("/api/planwith-fo-comment/comments")
-						.header("X-Member-Uuid", memberUuid)
+						.header("X-Auth-User-Id", memberUuid)
 						.contentType(MediaType.APPLICATION_JSON)
 						.content("""
 								{
@@ -473,7 +473,7 @@ class CommentWebAdapterIntegrationTests {
 		));
 
 		MvcResult created = mockMvc.perform(post("/api/planwith-fo-comment/comments")
-						.header("X-Member-Uuid", authorUuid)
+						.header("X-Auth-User-Id", authorUuid)
 						.contentType(MediaType.APPLICATION_JSON)
 						.content("""
 								{
@@ -498,7 +498,7 @@ class CommentWebAdapterIntegrationTests {
 				.andExpect(jsonPath("$.code").value("LOGIN_REQUIRED"));
 
 		mockMvc.perform(patch("/api/planwith-fo-comment/comments/{commentUuid}", commentUuid)
-						.header("X-Member-Uuid", UUID.randomUUID())
+						.header("X-Auth-User-Id", UUID.randomUUID())
 						.contentType(MediaType.APPLICATION_JSON)
 						.content("""
 								{
@@ -509,7 +509,7 @@ class CommentWebAdapterIntegrationTests {
 				.andExpect(jsonPath("$.code").value("COMMENT_OWNER_MISMATCH"));
 
 		mockMvc.perform(patch("/api/planwith-fo-comment/comments/{commentUuid}", commentUuid)
-						.header("X-Member-Uuid", storyOwnerUuid)
+						.header("X-Auth-User-Id", storyOwnerUuid)
 						.contentType(MediaType.APPLICATION_JSON)
 						.content("""
 								{
@@ -521,7 +521,7 @@ class CommentWebAdapterIntegrationTests {
 
 		Thread.sleep(10);
 		mockMvc.perform(patch("/api/planwith-fo-comment/comments/{commentUuid}", commentUuid)
-						.header("X-Member-Uuid", authorUuid)
+						.header("X-Auth-User-Id", authorUuid)
 						.contentType(MediaType.APPLICATION_JSON)
 						.content("""
 								{
@@ -534,7 +534,7 @@ class CommentWebAdapterIntegrationTests {
 				.andExpect(jsonPath("$.isUpdated").value(true));
 
 		mockMvc.perform(patch("/api/planwith-fo-comment/comments/{commentUuid}", commentUuid)
-						.header("X-Member-Uuid", authorUuid)
+						.header("X-Auth-User-Id", authorUuid)
 						.contentType(MediaType.APPLICATION_JSON)
 						.content("""
 								{
@@ -560,7 +560,7 @@ class CommentWebAdapterIntegrationTests {
 		));
 
 		MvcResult parent = mockMvc.perform(post("/api/planwith-fo-comment/comments")
-						.header("X-Member-Uuid", authorUuid)
+						.header("X-Auth-User-Id", authorUuid)
 						.contentType(MediaType.APPLICATION_JSON)
 						.content("""
 								{
@@ -575,7 +575,7 @@ class CommentWebAdapterIntegrationTests {
 				.asText();
 
 		mockMvc.perform(post("/api/planwith-fo-comment/comments")
-						.header("X-Member-Uuid", otherUuid)
+						.header("X-Auth-User-Id", otherUuid)
 						.contentType(MediaType.APPLICATION_JSON)
 						.content("""
 								{
@@ -590,16 +590,16 @@ class CommentWebAdapterIntegrationTests {
 				.andExpect(status().isUnauthorized())
 				.andExpect(jsonPath("$.code").value("LOGIN_REQUIRED"));
 		mockMvc.perform(delete("/api/planwith-fo-comment/comments/{commentUuid}", parentUuid)
-						.header("X-Member-Uuid", otherUuid))
+						.header("X-Auth-User-Id", otherUuid))
 				.andExpect(status().isForbidden())
 				.andExpect(jsonPath("$.code").value("COMMENT_DELETE_FORBIDDEN"));
 
 		mockMvc.perform(delete("/api/planwith-fo-comment/comments/{commentUuid}", parentUuid)
-						.header("X-Member-Uuid", authorUuid))
+						.header("X-Auth-User-Id", authorUuid))
 				.andExpect(status().isNoContent());
 
 		mockMvc.perform(get("/api/planwith-fo-comment/stories/{storyUuid}/comments", storyUuid)
-						.header("X-Member-Uuid", storyOwnerUuid))
+						.header("X-Auth-User-Id", storyOwnerUuid))
 				.andExpect(status().isOk())
 				.andExpect(jsonPath("$[0].commentUuid").value(parentUuid))
 				.andExpect(jsonPath("$[0].commentContent").value("삭제된 댓글입니다."))
@@ -610,7 +610,7 @@ class CommentWebAdapterIntegrationTests {
 				.andExpect(jsonPath("$[0].replies[0].canDelete").value(true));
 
 		MvcResult ownerTarget = mockMvc.perform(post("/api/planwith-fo-comment/comments")
-						.header("X-Member-Uuid", authorUuid)
+						.header("X-Auth-User-Id", authorUuid)
 						.contentType(MediaType.APPLICATION_JSON)
 						.content("""
 								{
@@ -624,11 +624,11 @@ class CommentWebAdapterIntegrationTests {
 				.get("commentUuid")
 				.asText();
 		mockMvc.perform(delete("/api/planwith-fo-comment/comments/{commentUuid}", ownerTargetUuid)
-						.header("X-Member-Uuid", storyOwnerUuid))
+						.header("X-Auth-User-Id", storyOwnerUuid))
 				.andExpect(status().isNoContent());
 
 		MvcResult adminTarget = mockMvc.perform(post("/api/planwith-fo-comment/comments")
-						.header("X-Member-Uuid", authorUuid)
+						.header("X-Auth-User-Id", authorUuid)
 						.contentType(MediaType.APPLICATION_JSON)
 						.content("""
 								{
@@ -642,12 +642,12 @@ class CommentWebAdapterIntegrationTests {
 				.get("commentUuid")
 				.asText();
 		mockMvc.perform(delete("/api/planwith-fo-comment/comments/{commentUuid}", adminTargetUuid)
-						.header("X-Member-Uuid", UUID.randomUUID())
-						.header("X-Member-Role", "ADMIN"))
+						.header("X-Auth-User-Id", UUID.randomUUID())
+						.header("X-Auth-Roles", "ADMIN"))
 				.andExpect(status().isNoContent());
 
 		mockMvc.perform(delete("/api/planwith-fo-comment/comments/{commentUuid}", parentUuid)
-						.header("X-Member-Uuid", authorUuid))
+						.header("X-Auth-User-Id", authorUuid))
 				.andExpect(status().isConflict())
 				.andExpect(jsonPath("$.code").value("COMMENT_ALREADY_DELETED"));
 	}
@@ -683,12 +683,12 @@ class CommentWebAdapterIntegrationTests {
 				.andExpect(jsonPath("$.code").value("LOGIN_REQUIRED"));
 
 		mockMvc.perform(get("/api/planwith-fo-comment/stories/{storyUuid}/comments/management", storyUuid)
-						.header("X-Member-Uuid", otherMemberUuid))
+						.header("X-Auth-User-Id", otherMemberUuid))
 				.andExpect(status().isForbidden())
 				.andExpect(jsonPath("$.code").value("COMMENT_MANAGEMENT_FORBIDDEN"));
 
 		mockMvc.perform(get("/api/planwith-fo-comment/stories/{storyUuid}/comments/management", storyUuid)
-						.header("X-Member-Uuid", storyOwnerUuid))
+						.header("X-Auth-User-Id", storyOwnerUuid))
 				.andExpect(status().isOk())
 				.andExpect(jsonPath("$.length()").value(2))
 				.andExpect(jsonPath("$[0].commentUuid").value(higherReportCommentUuid))
@@ -702,17 +702,17 @@ class CommentWebAdapterIntegrationTests {
 				.andExpect(jsonPath("$[1].reportCount").value(3));
 
 		mockMvc.perform(get("/api/planwith-fo-comment/stories/{storyUuid}/comments/management", storyUuid)
-						.header("X-Member-Uuid", UUID.randomUUID())
-						.header("X-Member-Role", "ADMIN"))
+						.header("X-Auth-User-Id", UUID.randomUUID())
+						.header("X-Auth-Roles", "ADMIN"))
 				.andExpect(status().isOk())
 				.andExpect(jsonPath("$.length()").value(2));
 
 		mockMvc.perform(delete("/api/planwith-fo-comment/comments/{commentUuid}", higherReportCommentUuid)
-						.header("X-Member-Uuid", storyOwnerUuid))
+						.header("X-Auth-User-Id", storyOwnerUuid))
 				.andExpect(status().isNoContent());
 
 		mockMvc.perform(get("/api/planwith-fo-comment/stories/{storyUuid}/comments/management", storyUuid)
-						.header("X-Member-Uuid", storyOwnerUuid))
+						.header("X-Auth-User-Id", storyOwnerUuid))
 				.andExpect(status().isOk())
 				.andExpect(jsonPath("$.length()").value(1))
 				.andExpect(jsonPath("$[0].commentUuid").value(lowerReportCommentUuid));
@@ -724,7 +724,7 @@ class CommentWebAdapterIntegrationTests {
 		enableStory(storyUuid);
 
 		mockMvc.perform(post("/api/planwith-fo-comment/comments")
-						.header("X-Member-Uuid", UUID.randomUUID())
+						.header("X-Auth-User-Id", UUID.randomUUID())
 						.contentType(MediaType.APPLICATION_JSON)
 						.content("""
 								{
@@ -748,7 +748,7 @@ class CommentWebAdapterIntegrationTests {
 
 	private String createComment(UUID storyUuid, UUID memberUuid, String content) throws Exception {
 		MvcResult result = mockMvc.perform(post("/api/planwith-fo-comment/comments")
-						.header("X-Member-Uuid", memberUuid)
+						.header("X-Auth-User-Id", memberUuid)
 						.contentType(MediaType.APPLICATION_JSON)
 						.content("""
 								{

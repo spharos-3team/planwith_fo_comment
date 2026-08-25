@@ -117,7 +117,7 @@ class CommentFullScenarioIntegrationTests {
 				.isEqualTo(replyUuid.toString());
 
 		mockMvc.perform(patch(COMMENTS_URL + "/{commentUuid}", firstCommentUuid)
-						.header("X-Member-Uuid", authorUuid)
+						.header("X-Auth-User-Id", authorUuid)
 						.contentType(MediaType.APPLICATION_JSON)
 						.content("""
 								{
@@ -128,7 +128,7 @@ class CommentFullScenarioIntegrationTests {
 				.andExpect(jsonPath("$.commentContent").value("updated by author"))
 				.andExpect(jsonPath("$.canEdit").value(true));
 		mockMvc.perform(patch(COMMENTS_URL + "/{commentUuid}", firstCommentUuid)
-						.header("X-Member-Uuid", otherMemberUuid)
+						.header("X-Auth-User-Id", otherMemberUuid)
 						.contentType(MediaType.APPLICATION_JSON)
 						.content("""
 								{
@@ -153,7 +153,7 @@ class CommentFullScenarioIntegrationTests {
 
 		// 11-12. Like and unlike events update the projected counter.
 		mockMvc.perform(get(COMMENTS_URL + "/{commentUuid}", firstCommentUuid)
-						.header("X-Member-Uuid", authorUuid))
+						.header("X-Auth-User-Id", authorUuid))
 				.andExpect(status().isOk())
 				.andExpect(jsonPath("$.likeCount").value(1));
 		handleCommentUnlikedUseCase.handleUnliked(new HandleLikeCommand(
@@ -235,7 +235,7 @@ class CommentFullScenarioIntegrationTests {
 	private UUID createComment(UUID storyUuid, UUID memberUuid, UUID parentCommentUuid, String content)
 			throws Exception {
 		MvcResult result = mockMvc.perform(post(COMMENTS_URL)
-						.header("X-Member-Uuid", memberUuid)
+						.header("X-Auth-User-Id", memberUuid)
 						.contentType(MediaType.APPLICATION_JSON)
 						.content(createBody(storyUuid, parentCommentUuid, content)))
 				.andExpect(status().isCreated())
@@ -253,16 +253,16 @@ class CommentFullScenarioIntegrationTests {
 	private JsonNode getComments(UUID storyUuid, String sort, UUID viewerUuid) throws Exception {
 		MvcResult result = mockMvc.perform(get(STORY_COMMENTS_URL, storyUuid)
 						.param("sort", sort)
-						.header("X-Member-Uuid", viewerUuid))
+						.header("X-Auth-User-Id", viewerUuid))
 				.andExpect(status().isOk())
 				.andReturn();
 		return objectMapper.readTree(result.getResponse().getContentAsString());
 	}
 
 	private JsonNode getManagedComments(UUID storyUuid, UUID memberUuid, String memberRole) throws Exception {
-		var request = get(MANAGEMENT_URL, storyUuid).header("X-Member-Uuid", memberUuid);
+		var request = get(MANAGEMENT_URL, storyUuid).header("X-Auth-User-Id", memberUuid);
 		if (memberRole != null) {
-			request.header("X-Member-Role", memberRole);
+			request.header("X-Auth-Roles", memberRole);
 		}
 		MvcResult result = mockMvc.perform(request)
 				.andExpect(status().isOk())
@@ -272,9 +272,9 @@ class CommentFullScenarioIntegrationTests {
 
 	private void deleteComment(UUID commentUuid, UUID memberUuid, String memberRole) throws Exception {
 		var request = delete(COMMENTS_URL + "/{commentUuid}", commentUuid)
-				.header("X-Member-Uuid", memberUuid);
+				.header("X-Auth-User-Id", memberUuid);
 		if (memberRole != null) {
-			request.header("X-Member-Role", memberRole);
+			request.header("X-Auth-Roles", memberRole);
 		}
 		mockMvc.perform(request).andExpect(status().isNoContent());
 	}

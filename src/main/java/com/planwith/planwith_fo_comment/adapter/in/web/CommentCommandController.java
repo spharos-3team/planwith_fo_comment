@@ -51,7 +51,7 @@ public class CommentCommandController {
 	@PostMapping
 	@Operation(summary = "댓글 작성", description = "댓글 또는 대댓글을 저장한다. 대댓글에 답글하면 최상위 댓글 아래의 2단계 평면형 답글로 저장한다.")
 	public ResponseEntity<CommentResponse> createComment(
-			@RequestHeader(value = "X-Member-Uuid", required = false) UUID memberUuid,
+			@RequestHeader(value = "X-Auth-User-Id", required = false) UUID memberUuid,
 			@Valid @RequestBody CreateCommentRequest request
 	) {
 		log.info("CommentCommandController : POST createComment : 댓글 작성 요청");
@@ -73,7 +73,7 @@ public class CommentCommandController {
 	@PatchMapping("/{commentUuid}")
 	@Operation(summary = "댓글 수정", description = "댓글 작성자만 수정할 수 있다. 수정 시 updated_at을 갱신한다.")
 	public ResponseEntity<CommentResponse> updateComment(
-			@RequestHeader(value = "X-Member-Uuid", required = false) UUID memberUuid,
+			@RequestHeader(value = "X-Auth-User-Id", required = false) UUID memberUuid,
 			@PathVariable UUID commentUuid,
 			@Valid @RequestBody UpdateCommentRequest request
 	) {
@@ -91,8 +91,8 @@ public class CommentCommandController {
 	@DeleteMapping("/{commentUuid}")
 	@Operation(summary = "댓글 삭제", description = "작성자, Story 소유자, 운영자만 Soft Delete할 수 있다.")
 	public ResponseEntity<Void> deleteComment(
-			@RequestHeader(value = "X-Member-Uuid", required = false) UUID memberUuid,
-			@RequestHeader(value = "X-Member-Role", required = false) String memberRole,
+			@RequestHeader(value = "X-Auth-User-Id", required = false) UUID memberUuid,
+			@RequestHeader(value = "X-Auth-Roles", required = false) String memberRole,
 			@PathVariable UUID commentUuid
 	) {
 		log.info("CommentCommandController : DELETE deleteComment : 댓글 삭제 요청");
